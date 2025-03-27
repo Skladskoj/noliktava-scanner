@@ -80,10 +80,9 @@
       flex-direction: column;
     }
 
-    video {
+    #reader {
       width: 100%;
-      height: auto;
-      max-height: 100vh;
+      max-width: 600px;
     }
 
     #scannerLine {
@@ -172,7 +171,7 @@
   <button id="backButton">Atpakaļ</button>
 
   <div id="scannerOverlay">
-    <video id="preview" autoplay playsinline muted></video>
+    <div id="reader"></div>
   </div>
 
   <div id="scannerLine"></div>
@@ -202,9 +201,8 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <script src="https://unpkg.com/html5-qrcode@latest"></script>
   <script>
-    const videoElement = document.getElementById('preview');
     const startButton = document.getElementById('startButton');
     const buttonContainer = document.getElementById('buttonContainer');
     const backButton = document.getElementById('backButton');
@@ -221,7 +219,7 @@
 
     let scannedCode = "";
     let typedQuantity = "";
-    let codeReader;
+    let html5QrcodeScanner;
 
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -236,11 +234,14 @@
     }
 
     function closeScanner() {
-      if (codeReader) codeReader.stop();
-      overlay.style.display = 'none';
-      scannerLine.style.display = 'none';
-      backButton.style.display = 'none';
-      buttonContainer.style.display = 'block';
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+          overlay.style.display = 'none';
+          scannerLine.style.display = 'none';
+          backButton.style.display = 'none';
+          buttonContainer.style.display = 'block';
+        }).catch(err => console.error("Stop error", err));
+      }
     }
 
     function showResultOverlay(code) {
@@ -286,37 +287,38 @@
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
 
-      const ZXing = window.ZXing;
-      const hints = new Map();
       const formats = [
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.UPC_A
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
       ];
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
 
-      codeReader = new ZXing.BrowserMultiFormatReader(hints);
+      html5QrcodeScanner = new Html5Qrcode("reader");
 
-      try {
-        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-        const backCam = devices.find(d => /back|rear|задн|aizmugur/i.test(d.label)) || devices[0];
-
-        await codeReader.decodeFromVideoDevice(backCam.deviceId, videoElement, (result, err) => {
-          if (result) {
-            const text = result.getText();
-            playBeep();
-            codeReader.reset();
-            closeScanner();
-            showResultOverlay(text);
-          }
-        });
-      } catch (error) {
-        console.error("Ошибка доступа к камере:", error);
-        alert("Kļūda: nevar piekļūt kamerai. Lūdzu, pārliecinies, ka devējs ir atļauts!");
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: 250,
+          formatsToSupport: formats
+        },
+        (decodedText, result) => {
+          playBeep();
+          html5QrcodeScanner.stop();
+          closeScanner();
+          showResultOverlay(decodedText);
+        },
+        (errorMessage) => {
+          // console.warn("Scan error:", errorMessage);
+        }
+      ).catch(err => {
+        alert("Kļūda: nevar piekļūt kamerai. Lūdzu, atļauj pārlūkprogrammai izmantot kameru.");
         closeScanner();
-      }
+      });
     });
 
     backButton.addEventListener('click', closeScanner);
