@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Noliktava</title>
   <style>
+    /* Базовые стили */
     html, body {
       margin: 0;
       padding: 0;
@@ -13,24 +14,27 @@
     }
 
     h1 {
-      position: absolute;
-      top: 10px;
-      font-size: 5em;
+	position: absolute;
+		top: 10px;
+	  font-size: 5em;
       left: 50%;
       transform: translateX(-50%);
       color: #fff;
+	
     }
 
+    /* Контейнер для кнопки "Skenēt" с текстом */
     #buttonContainer {
       position: fixed;
       top: 50%;
       left: 50%;
-      width: calc(100vw - 150px);
+      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
       height: calc(100vw - 150px);
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
 
+    /* Круглая кнопка без текста */
     #startButton {
       width: 100%;
       height: 100%;
@@ -39,18 +43,22 @@
       background: orange;
     }
 
+    /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: calc((100vw - 100px) * 0.19);
-      font-weight: bold;
-      color: white;
-      pointer-events: none;
-      white-space: nowrap;
-    }
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;           /* ширина определяется содержимым */
+  transform: translate(-50%, -50%);
+  white-space: nowrap;   /* не переносить текст */
+  font-size: calc((100vw - 100px) * 0.19);
+  font-weight: bold;
+  color: white;
+  pointer-events: none;  /* клики проходят сквозь контейнер */
+}
 
+
+    /* Кнопка "Atpakaļ" (прямоугольная, в правом нижнем углу) */
     #backButton {
       position: fixed;
       right: 30px;
@@ -58,14 +66,16 @@
       height: 200px;
       padding: 0 20px;
       font-size: 5em;
+      margin: 0;
       z-index: 1100;
       background: orange;
       color: white;
       border: none;
       border-radius: 20px;
-      display: none;
+      display: none; /* изначально скрыта */
     }
 
+    /* Оверлей сканера: на весь экран */
     #scannerOverlay {
       display: none;
       position: fixed;
@@ -74,17 +84,17 @@
       height: 100vh;
       background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
-      display: flex;
+      
       justify-content: center;
       align-items: center;
       flex-direction: column;
     }
-
-    #reader {
+    video {
       width: 100%;
-      max-width: 600px;
+      height: auto;
+      max-height: 100vh;
     }
-
+    /* Красная линия сканирования */
     #scannerLine {
       position: absolute;
       top: 50%;
@@ -96,6 +106,7 @@
       display: none;
     }
 
+    /* Оверлей результата (сканированный код + ввод количества) */
     #resultOverlay {
       display: none;
       position: fixed;
@@ -108,41 +119,36 @@
       flex-direction: column;
       justify-content: space-between;
     }
-
+    /* Верхняя часть оверлея результата */
     #topSection {
       padding: 20px;
       text-align: center;
     }
-
     #scannedValue {
       font-size: 3em;
       margin-bottom: 10px;
     }
-
     #infoText {
       font-size: 1.2em;
       opacity: 0.8;
       margin-bottom: 10px;
     }
-
     #typedQuantity {
       font-size: 2.5em;
       margin-bottom: 10px;
     }
-
+    /* Нижняя часть – клавиатура */
     #bottomSection {
       background: #111;
       padding: 20px;
     }
-
     .keypad-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       grid-gap: 10px;
-      max-width: 400px;
       margin: 0 auto;
+      max-width: 400px;
     }
-
     .keypad-btn {
       background: #333;
       color: #fff;
@@ -150,9 +156,9 @@
       padding: 20px;
       border: none;
       border-radius: 10px;
+      text-align: center;
       cursor: pointer;
     }
-
     #confirmBtn {
       margin-top: 10px;
       width: 100%;
@@ -163,19 +169,24 @@
 <body>
   <h1>Noliktava</h1>
 
+  <!-- Контейнер для круглой кнопки "Skenēt" -->
   <div id="buttonContainer">
     <button id="startButton"></button>
     <div id="buttonTextContainer">Skenēt</div>
   </div>
 
+  <!-- Кнопка "Atpakaļ" (отдельный элемент, появляется при сканировании) -->
   <button id="backButton">Atpakaļ</button>
 
+  <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <div id="reader"></div>
+    <video id="preview"></video>
   </div>
 
+  <!-- Линия сканирования -->
   <div id="scannerLine"></div>
 
+  <!-- Оверлей результата (сканированный код + ввод количества) -->
   <div id="resultOverlay">
     <div id="topSection">
       <div id="scannedValue"></div>
@@ -201,11 +212,13 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/html5-qrcode@latest"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script>
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    const videoElement = document.getElementById('preview');
     const startButton = document.getElementById('startButton');
     const buttonContainer = document.getElementById('buttonContainer');
-    const backButton = document.getElementById('backButton');
+    const backButton = document.getElementById('backButton'); // кнопка в углу
     const overlay = document.getElementById('scannerOverlay');
     const scannerLine = document.getElementById('scannerLine');
 
@@ -213,14 +226,14 @@
     const scannedValueDiv = document.getElementById('scannedValue');
     const typedQuantityDiv = document.getElementById('typedQuantity');
     const keypadGrid = document.getElementById('keypadGrid');
-    const backBtn = document.getElementById('backBtn');
+    const backBtn = document.getElementById('backBtn'); // кнопка "Atpakaļ" в клавиатуре
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
 
     let scannedCode = "";
     let typedQuantity = "";
-    let html5QrcodeScanner;
 
+    // Функция звукового сигнала
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -230,20 +243,23 @@
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       oscillator.start();
-      setTimeout(() => oscillator.stop(), 200);
+      setTimeout(() => {
+        oscillator.stop();
+      }, 200);
     }
 
+    // Закрытие сканера: скрываем оверлей сканера и переключаем кнопки
     function closeScanner() {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-          overlay.style.display = 'none';
-          scannerLine.style.display = 'none';
-          backButton.style.display = 'none';
-          buttonContainer.style.display = 'block';
-        }).catch(err => console.error("Stop error", err));
-      }
+      codeReader.reset();
+      overlay.style.display = 'none';
+      scannerLine.style.display = 'none';
+      // Скрываем кнопку "Atpakaļ" в углу
+      backButton.style.display = 'none';
+      // Показываем контейнер с круглой кнопкой "Skenēt"
+      buttonContainer.style.display = 'block';
     }
 
+    // Показ оверлея результата после сканирования
     function showResultOverlay(code) {
       scannedCode = code;
       typedQuantity = "";
@@ -260,6 +276,7 @@
       typedQuantityDiv.textContent = "";
     }
 
+    // Обработка нажатий на клавиши цифровой клавиатуры
     keypadGrid.addEventListener('click', (e) => {
       if (!e.target.classList.contains('keypad-btn')) return;
       const value = e.target.textContent;
@@ -269,58 +286,92 @@
       }
     });
 
-    backBtn.addEventListener('click', hideResultOverlay);
+    // Кнопка "Atpakaļ" внутри клавиатуры
+    backBtn.addEventListener('click', () => {
+      hideResultOverlay();
+    });
+
+    // Кнопка "Nodzēst" — удалить последний символ
     delBtn.addEventListener('click', () => {
       typedQuantity = typedQuantity.slice(0, -1);
       typedQuantityDiv.textContent = typedQuantity;
     });
 
+    // Кнопка "Apstiprināt"
     confirmBtn.addEventListener('click', () => {
       console.log("Отсканированный код:", scannedCode);
       console.log("Количество:", typedQuantity);
       hideResultOverlay();
     });
 
-    startButton.addEventListener('click', async () => {
+    // Основная функция сканирования
+    async function initAndScan() {
       overlay.style.display = 'flex';
       scannerLine.style.display = 'block';
+      codeReader.reset();
+
+      // При запуске сканирования: скрываем контейнер с кнопкой "Skenēt"
       buttonContainer.style.display = 'none';
+      // Показываем кнопку "Atpakaļ" в углу
       backButton.style.display = 'block';
 
-      const formats = [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E
-      ];
+      let lastResult = null;
+      let matchCount = 0;
 
-      html5QrcodeScanner = new Html5Qrcode("reader");
-
-      html5QrcodeScanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: 250,
-          formatsToSupport: formats
-        },
-        (decodedText, result) => {
-          playBeep();
-          html5QrcodeScanner.stop();
-          closeScanner();
-          showResultOverlay(decodedText);
-        },
-        (errorMessage) => {
-          // console.warn("Scan error:", errorMessage);
+      try {
+        const constraints = {
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 3840, max: 3840 },
+            height: { ideal: 2160, max: 2160 },
+            advanced: [{ focusMode: "continuous" }]
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const videoTrack = stream.getVideoTracks()[0];
+        const capabilities = videoTrack.getCapabilities();
+        if (capabilities.focusMode) {
+          await videoTrack.applyConstraints({ focusMode: "continuous" });
         }
-      ).catch(err => {
-        alert("Kļūda: nevar piekļūt kamerai. Lūdzu, atļauj pārlūkprogrammai izmantot kameru.");
-        closeScanner();
-      });
-    });
+        stream.getTracks().forEach(track => track.stop());
 
+        const devices = await codeReader.listVideoInputDevices();
+        let backCameraId;
+        const macroDevice = devices.find(device =>
+          device.label.toLowerCase().includes("macro") || device.label.toLowerCase().includes("макро")
+        );
+        if (macroDevice) {
+          backCameraId = macroDevice.deviceId;
+        } else {
+          backCameraId = devices.find(device =>
+            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("задн")
+          )?.deviceId || devices[0].deviceId;
+        }
+
+        codeReader.decodeFromVideoDevice(backCameraId, videoElement, (result, err) => {
+          if (result) {
+            const text = result.getText();
+            if (text === lastResult) {
+              matchCount++;
+            } else {
+              lastResult = text;
+              matchCount = 1;
+            }
+            if (matchCount >= 3) {
+              playBeep();
+              setTimeout(() => {
+                closeScanner();
+                showResultOverlay(text);
+              }, 300);
+            }
+          }
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    startButton.addEventListener('click', initAndScan);
     backButton.addEventListener('click', closeScanner);
   </script>
 </body>
