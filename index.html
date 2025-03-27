@@ -106,7 +106,6 @@
       background: #000;
       z-index: 2000;
       color: #fff;
-   
       flex-direction: column;
       justify-content: space-between;
     }
@@ -173,7 +172,7 @@
   <button id="backButton">Atpakaļ</button>
 
   <div id="scannerOverlay">
-    <video id="preview"></video>
+    <video id="preview" autoplay playsinline muted></video>
   </div>
 
   <div id="scannerLine"></div>
@@ -298,34 +297,26 @@
       ];
       hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
 
-      codeReader = new ZXing.BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 100
-      });
+      codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
-      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-      const backCam = devices.find(d => /back|rear|задн|aizmugur/i.test(d.label)) || devices[0];
+      try {
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        const backCam = devices.find(d => /back|rear|задн|aizmugur/i.test(d.label)) || devices[0];
 
-      let lastText = "";
-      let repeat = 0;
-
-      codeReader.decodeFromVideoDevice(backCam.deviceId, videoElement, (result, err) => {
-        if (result) {
-          const text = result.getText();
-          if (text === lastText) {
-            repeat++;
-          } else {
-            lastText = text;
-            repeat = 1;
-          }
-
-          if (repeat >= 3) {
+        await codeReader.decodeFromVideoDevice(backCam.deviceId, videoElement, (result, err) => {
+          if (result) {
+            const text = result.getText();
             playBeep();
             codeReader.reset();
             closeScanner();
             showResultOverlay(text);
           }
-        }
-      });
+        });
+      } catch (error) {
+        console.error("Ошибка доступа к камере:", error);
+        alert("Kļūda: nevar piekļūt kamerai. Lūdzu, pārliecinies, ka devējs ir atļauts!");
+        closeScanner();
+      }
     });
 
     backButton.addEventListener('click', closeScanner);
