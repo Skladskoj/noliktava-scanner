@@ -12,7 +12,6 @@
       background: #000;
       color: #fff;
     }
-
     h1 {
       position: absolute;
       top: 0;
@@ -21,18 +20,16 @@
       transform: translateX(-50%);
       color: #fff;
     }
-
     /* Контейнер для кнопки "Skenēt" с текстом */
     #buttonContainer {
       position: fixed;
       top: 50%;
       left: 50%;
-      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
+      width: calc(100vw - 150px);
       height: calc(100vw - 150px);
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
-
     /* Круглая кнопка без текста */
     #startButton {
       width: 100%;
@@ -41,7 +38,6 @@
       border-radius: 50%;
       background: orange;
     }
-
     /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
       position: absolute;
@@ -54,7 +50,6 @@
       color: white;
       pointer-events: none;
     }
-
     /* Кнопка "Atpakaļ" (правый нижний угол) */
     #backButton {
       position: fixed;
@@ -71,11 +66,10 @@
       border-radius: 20px;
       display: none;
     }
-
     /* Оверлей сканера */
     #scannerOverlay {
       display: none;
-       position: absolute;
+      position: absolute;
       top: 300px;
       width: 100%;
       height: 100%;
@@ -85,30 +79,23 @@
       justify-content: center;
       align-items: center;
       flex-direction: column;
-
-    
-      
     }
-
     video {
       width: 100%;
       height: auto;
       max-height: 100vh;
     }
-
     /* Красная линия сканирования */
     #scannerLine {
-  position: absolute;
-  top: 50%;
-  left: 100px;
-  width: calc(100% - 200px); /* 100px с каждой стороны */
-  height: 10px;
-  background-color: red;
-  z-index: 1500;
-  display: none;
-}
-
-
+      position: absolute;
+      top: 50%;
+      left: 100px;
+      width: calc(100% - 200px);
+      height: 10px;
+      background-color: red;
+      z-index: 1500;
+      display: none;
+    }
     /* Оверлей результата */
     #resultOverlay {
       display: none;
@@ -122,7 +109,6 @@
       flex-direction: column;
       justify-content: space-between;
     }
-
     /* Верхняя часть результата */
     #topSection {
       padding: 20px;
@@ -141,7 +127,6 @@
       font-size: 2.5em;
       margin-bottom: 10px;
     }
-
     /* Нижняя часть – клавиатура */
     #bottomSection {
       background: #111;
@@ -217,8 +202,10 @@
     </div>
   </div>
 
-  <!-- Подключение библиотеки QuaggaJS -->
+  <!-- Подключаем библиотеки -->
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+
   <script>
     // Элементы интерфейса
     const startButton = document.getElementById('startButton');
@@ -236,9 +223,10 @@
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Переменные для проверки повторов результата
     let lastDetectedCode = null;
     let matchCount = 0;
+    let fallbackTimeout = null;
+    let qrScanInterval = null;
 
     // Функция звукового сигнала
     function playBeep() {
@@ -255,19 +243,26 @@
       }, 200);
     }
 
-    // Функция закрытия сканера
+    // Функция закрытия сканера и очистки таймеров/интервалов
     function closeScanner() {
       Quagga.stop();
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
       backButton.style.display = 'none';
       buttonContainer.style.display = 'block';
-      // Сброс переменных для повторного сканирования
       lastDetectedCode = null;
       matchCount = 0;
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+      if (qrScanInterval) {
+        clearInterval(qrScanInterval);
+        qrScanInterval = null;
+      }
     }
 
-    // Показ оверлея результата
+    // Отображение оверлея результата
     function showResultOverlay(code) {
       scannedCode = code;
       typedQuantity = "";
@@ -312,8 +307,7 @@
       hideResultOverlay();
     });
 
-    // Выносим обработчик обнаружения штрих-кода в отдельную функцию,
-    // чтобы потом можно было его отписать.
+    // Обработчик обнаружения штрих-кода QuaggaJS
     function onDetectedCallback(result) {
       const code = result.codeResult.code;
       if (code === lastDetectedCode) {
@@ -322,16 +316,56 @@
         lastDetectedCode = code;
         matchCount = 1;
       }
-      // Если получено два последовательных одинаковых результата
+      // Если получено несколько последовательных одинаковых результатов
       if (matchCount >= 5) {
         playBeep();
-        // Отписываем обработчик, чтобы избежать накопления слушателей
+        clearTimeout(fallbackTimeout);
         Quagga.offDetected(onDetectedCallback);
         setTimeout(() => {
           Quagga.stop();
+          closeQRCodeFallback(); // если запущено резервное сканирование QR, остановить его
           closeScanner();
           showResultOverlay(code);
         }, 300);
+      }
+    }
+
+    // Функция сканирования QR-кода с использованием jsQR
+    function scanQRCode() {
+      // Получаем видеопоток, созданный QuaggaJS
+      const video = overlay.querySelector('video') || document.querySelector('video');
+      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        return;
+      }
+      // Создаем временный canvas для захвата кадра
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      // Используем jsQR для распознавания QR-кода
+      const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+      if (qrCode) {
+        playBeep();
+        clearInterval(qrScanInterval);
+        qrScanInterval = null;
+        closeScanner();
+        showResultOverlay(qrCode.data);
+      }
+    }
+
+    // Запуск резервного сканирования QR-кода
+    function startQRCodeFallback() {
+      console.log("Запуск резервного QR-сканирования");
+      qrScanInterval = setInterval(scanQRCode, 500); // проверяем каждые 500 мс
+    }
+
+    // Остановка резервного сканирования QR-кода
+    function closeQRCodeFallback() {
+      if (qrScanInterval) {
+        clearInterval(qrScanInterval);
+        qrScanInterval = null;
       }
     }
 
@@ -342,7 +376,6 @@
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
 
-      // Сброс переменных перед началом сканирования
       lastDetectedCode = null;
       matchCount = 0;
 
@@ -356,8 +389,6 @@
           }
         },
         decoder: {
-          // Добавлены дополнительные форматы штрих-кодов.
-          // QuaggaJS не поддерживает QR-коды из коробки.
           readers: [
             "code_128_reader",
             "ean_reader",
@@ -378,12 +409,19 @@
           return;
         }
         Quagga.start();
-        // Добавляем обработчик обнаружения
         Quagga.onDetected(onDetectedCallback);
+        // Если в течение 10 секунд не будет распознано ни одного штрих-кода,
+        // переключаемся на резервное сканирование QR-кода
+        fallbackTimeout = setTimeout(() => {
+          if (!lastDetectedCode) {
+            console.log("Не удалось распознать штрих-код, переключаемся на QR-сканирование.");
+            Quagga.stop();
+            startQRCodeFallback();
+          }
+        }, 10000);
       });
     }
 
-    // Назначение обработчиков событий
     startButton.addEventListener('click', initAndScan);
     backButton.addEventListener('click', closeScanner);
   </script>
