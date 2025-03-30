@@ -80,6 +80,13 @@
       align-items: center;
       flex-direction: column;
     }
+    /* Канвас для отрисовки рамки поверх видео */
+    #drawingCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
     video {
       width: 100%;
       height: auto;
@@ -170,7 +177,9 @@
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <!-- QuaggaJS создаст видеопоток здесь -->
+    <!-- Здесь QuaggaJS создаст видеопоток -->
+    <!-- Канвас для отрисовки рамки -->
+    <canvas id="drawingCanvas"></canvas>
   </div>
 
   <!-- Линия сканирования -->
@@ -220,13 +229,14 @@
     const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
+    const drawingCanvas = document.getElementById('drawingCanvas');
 
     let scannedCode = "";
     let typedQuantity = "";
     let lastDetectedCode = null;
     let matchCount = 0;
     let modeSwitchInterval = null;
-    let currentMode = 'barcode'; // текущий режим: "barcode" или "qr"
+    let currentMode = 'barcode'; // "barcode" или "qr"
 
     // Функция звукового сигнала
     function playBeep() {
@@ -243,9 +253,38 @@
       }, 200);
     }
 
-    // Функция закрытия сканера и очистки интервала переключения
+    // Функция для отрисовки рамки (bounding box)
+    function drawBoundingBox(points) {
+      if (!drawingCanvas) return;
+      const ctx = drawingCanvas.getContext("2d");
+      // Очищаем предыдущую отрисовку
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+      
+      // Если точки заданы в виде массива массивов [x, y], приводим их к объектному виду
+      if (points.length && Array.isArray(points[0])) {
+        points = points.map(p => ({ x: p[0], y: p[1] }));
+      }
+      
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.closePath();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "lime";
+      ctx.stroke();
+    }
+
+    // Функция для очистки канваса
+    function clearBoundingBox() {
+      if (!drawingCanvas) return;
+      const ctx = drawingCanvas.getContext("2d");
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    }
+
+    // Функция закрытия сканера и очистки интервалов/канваса
     function closeScanner() {
-      // Останавливаем QuaggaJS окончательно (например, при подтверждении результата)
       Quagga.stop();
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
@@ -257,6 +296,7 @@
         clearInterval(modeSwitchInterval);
         modeSwitchInterval = null;
       }
+      clearBoundingBox();
     }
 
     // Отображение оверлея результата
@@ -266,7 +306,6 @@
       scannedValueDiv.textContent = scannedCode;
       typedQuantityDiv.textContent = typedQuantity;
       resultOverlay.style.display = 'flex';
-      // Останавливаем переключение режимов, если код найден
       if (modeSwitchInterval) {
         clearInterval(modeSwitchInterval);
         modeSwitchInterval = null;
@@ -309,26 +348,30 @@
       hideResultOverlay();
     });
 
-    // Обработчик обнаружения штрих-кода QuaggaJS
+    // Обработчик обнаружения штрих-кода (QuaggaJS)
     function onDetectedCallback(result) {
-  const code = result.codeResult.code;
-  if (code === lastDetectedCode) {
-    matchCount++;
-  } else {
-    lastDetectedCode = code;
-    matchCount = 1;
-  }
-  // При достижении порога сразу отписываемся, чтобы не получить повторное срабатывание
-  if (matchCount >= 5) {
-    Quagga.offDetected(onDetectedCallback);
-    playBeep();
-    setTimeout(() => {
-      closeScanner();
-      showResultOverlay(code);
-    }, 300);
-  }
-}
-
+      const code = result.codeResult.code;
+      if (code === lastDetectedCode) {
+        matchCount++;
+      } else {
+        lastDetectedCode = code;
+        matchCount = 1;
+      }
+      // Отрисовываем рамку по координатам обнаруженного штрих-кода, если они есть
+      if (result.box) {
+        drawBoundingBox(result.box);
+      }
+      // Если получено достаточное число совпадений
+      if (matchCount >= 5) {
+        Quagga.offDetected(onDetectedCallback);
+        playBeep();
+        // Немного задерживаем перед показом результата, чтобы пользователь увидел рамку
+        setTimeout(() => {
+          closeScanner();
+          showResultOverlay(code);
+        }, 300);
+      }
+    }
 
     // Функция сканирования QR-кода с использованием jsQR
     function scanQRCode() {
@@ -344,23 +387,31 @@
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
       const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
       if (qrCode) {
+        // Для QR кода отрисовываем рамку по координатам
+        const points = [
+          qrCode.location.topLeftCorner,
+          qrCode.location.topRightCorner,
+          qrCode.location.bottomRightCorner,
+          qrCode.location.bottomLeftCorner
+        ];
+        drawBoundingBox(points);
         playBeep();
-        closeScanner();
-        showResultOverlay(qrCode.data);
+        setTimeout(() => {
+          closeScanner();
+          showResultOverlay(qrCode.data);
+        }, 300);
       }
     }
 
-    // Функция переключения режима
+    // Функция переключения режима между штрих-кодом и QR-кодом
     function switchMode() {
       if (currentMode === 'barcode') {
-        // Переключаемся на режим QR
         console.log("Переключаемся на режим QR");
         Quagga.offDetected(onDetectedCallback);
         currentMode = 'qr';
         // Немедленно пытаемся считать QR-код
         scanQRCode();
       } else {
-        // Переключаемся на режим штрих-кода
         console.log("Переключаемся на режим штрих-кода");
         currentMode = 'barcode';
         Quagga.onDetected(onDetectedCallback);
@@ -373,7 +424,8 @@
       scannerLine.style.display = 'block';
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
-
+      
+      // Сброс переменных
       lastDetectedCode = null;
       matchCount = 0;
       currentMode = 'barcode';
@@ -408,9 +460,16 @@
           return;
         }
         Quagga.start();
-        // Запускаем начальный режим — штрих-коды
         Quagga.onDetected(onDetectedCallback);
-        // Запускаем переключение режимов каждые 0,5 секунду
+        // Устанавливаем размеры канваса для отрисовки рамки (после появления видео)
+        setTimeout(() => {
+          const video = overlay.querySelector('video') || document.querySelector('video');
+          if (video && drawingCanvas) {
+            drawingCanvas.width = video.videoWidth;
+            drawingCanvas.height = video.videoHeight;
+          }
+        }, 1000);
+        // Переключение режимов каждую секунду до получения результата
         modeSwitchInterval = setInterval(switchMode, 500);
       });
     }
