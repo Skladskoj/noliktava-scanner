@@ -311,22 +311,24 @@
 
     // Обработчик обнаружения штрих-кода QuaggaJS
     function onDetectedCallback(result) {
-      const code = result.codeResult.code;
-      if (code === lastDetectedCode) {
-        matchCount++;
-      } else {
-        lastDetectedCode = code;
-        matchCount = 1;
-      }
-      // Если получено достаточное число последовательных совпадений
-      if (matchCount >= 5) {
-        playBeep();
-        setTimeout(() => {
-          closeScanner();
-          showResultOverlay(code);
-        }, 300);
-      }
-    }
+  const code = result.codeResult.code;
+  if (code === lastDetectedCode) {
+    matchCount++;
+  } else {
+    lastDetectedCode = code;
+    matchCount = 1;
+  }
+  // При достижении порога сразу отписываемся, чтобы не получить повторное срабатывание
+  if (matchCount >= 5) {
+    Quagga.offDetected(onDetectedCallback);
+    playBeep();
+    setTimeout(() => {
+      closeScanner();
+      showResultOverlay(code);
+    }, 300);
+  }
+}
+
 
     // Функция сканирования QR-кода с использованием jsQR
     function scanQRCode() {
