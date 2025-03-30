@@ -229,6 +229,9 @@
 
     let scannedCode = "";
     let typedQuantity = "";
+    // Переменные для проверки повторов результата
+    let lastDetectedCode = null;
+    let matchCount = 0;
 
     // Функция звукового сигнала
     function playBeep() {
@@ -252,6 +255,9 @@
       scannerLine.style.display = 'none';
       backButton.style.display = 'none';
       buttonContainer.style.display = 'block';
+      // Сброс переменных для повторного сканирования
+      lastDetectedCode = null;
+      matchCount = 0;
     }
 
     // Показ оверлея результата после сканирования
@@ -306,6 +312,10 @@
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
 
+      // Сброс переменных перед началом сканирования
+      lastDetectedCode = null;
+      matchCount = 0;
+
       Quagga.init({
         inputStream: {
           name: "Live",
@@ -327,15 +337,24 @@
         Quagga.start();
       });
 
-      // Обработка обнаруженного штрих-кода
+      // Обработка обнаруженного штрих-кода с логикой повторов
       Quagga.onDetected(function(result) {
         const code = result.codeResult.code;
-        playBeep();
-        setTimeout(() => {
-          Quagga.stop();
-          closeScanner();
-          showResultOverlay(code);
-        }, 300);
+        if (code === lastDetectedCode) {
+          matchCount++;
+        } else {
+          lastDetectedCode = code;
+          matchCount = 1;
+        }
+        // Если два последовательных раза получен один и тот же результат, считаем сканирование успешным
+        if (matchCount >= 2) {
+          playBeep();
+          setTimeout(() => {
+            Quagga.stop();
+            closeScanner();
+            showResultOverlay(code);
+          }, 300);
+        }
       });
     }
 
