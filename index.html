@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Noliktava</title>
+  <title>Noliktava (Quagga2 Test)</title>
   <style>
     /* Базовые стили */
     html, body {
@@ -170,7 +170,7 @@
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <!-- QuaggaJS создаст видеопоток здесь -->
+    <!-- Quagga2 создаст видеопоток здесь -->
   </div>
 
   <!-- Линия сканирования -->
@@ -202,8 +202,8 @@
     </div>
   </div>
 
-  <!-- Подключаем библиотеки -->
-  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <!-- Подключаем Quagga2 и jsQR -->
+  <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.js"></script>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 
   <script>
@@ -228,7 +228,6 @@
     let modeSwitchInterval = null;
     let currentMode = 'barcode'; // "barcode" или "qr"
 
-    // Функция звукового сигнала
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -238,102 +237,9 @@
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       oscillator.start();
-      setTimeout(() => {
-        oscillator.stop();
-      }, 200);
+      setTimeout(() => oscillator.stop(), 200);
     }
 
-    // Функция переключения фокусировки (смена focusMode) по нажатию
-    function toggleFocus() {
-      const video = overlay.querySelector('video') || document.querySelector('video');
-      if (!video || !video.srcObject) return;
-      const track = video.srcObject.getVideoTracks()[0];
-      if (!track || typeof track.getCapabilities !== 'function') {
-        console.log("Устройство не поддерживает управление фокусом.");
-        return;
-      }
-      const capabilities = track.getCapabilities();
-      // Если устройство не поддерживает настройку focusMode, выходим
-      if (!capabilities.focusMode) {
-        console.log("Настройка focusMode не поддерживается данным устройством.");
-        return;
-      }
-      const settings = track.getSettings();
-      console.log("Текущий режим фокуса:", settings.focusMode);
-      let newMode = settings.focusMode;
-      // Простейший переключатель: если текущий режим 'continuous' – переключаем на 'manual' (если доступно), и наоборот.
-      if (settings.focusMode === 'continuous' && capabilities.focusMode.includes('manual')) {
-        newMode = 'manual';
-      } else if (settings.focusMode === 'manual' && capabilities.focusMode.includes('continuous')) {
-        newMode = 'continuous';
-      }
-      track.applyConstraints({ advanced: [{ focusMode: newMode }]})
-        .then(() => {
-          console.log("Фокус переключён на:", newMode);
-        })
-        .catch((err) => {
-          console.error("Ошибка при переключении фокуса:", err);
-        });
-    }
-
-    // Добавляем обработчики событий по касанию и клику для переключения фокуса
-    overlay.addEventListener("touchstart", toggleFocus);
-    overlay.addEventListener("click", toggleFocus);
-
-    // Обработчик обнаружения штрих-кода (QuaggaJS)
-    function onDetectedCallback(result) {
-      const code = result.codeResult.code;
-      if (code === lastDetectedCode) {
-        matchCount++;
-      } else {
-        lastDetectedCode = code;
-        matchCount = 1;
-      }
-      if (matchCount >= 5) {
-        Quagga.offDetected(onDetectedCallback);
-        playBeep();
-        setTimeout(() => {
-          closeScanner();
-          showResultOverlay(code);
-        }, 300);
-      }
-    }
-
-    // Функция сканирования QR-кода с использованием jsQR
-    function scanQRCode() {
-      const video = overlay.querySelector('video') || document.querySelector('video');
-      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
-      if (qrCode) {
-        playBeep();
-        setTimeout(() => {
-          closeScanner();
-          showResultOverlay(qrCode.data);
-        }, 300);
-      }
-    }
-
-    // Функция переключения режима между штрих-кодом и QR-кодом
-    function switchMode() {
-      if (currentMode === 'barcode') {
-        console.log("Переключаемся на режим QR");
-        Quagga.offDetected(onDetectedCallback);
-        currentMode = 'qr';
-        scanQRCode();
-      } else {
-        console.log("Переключаемся на режим штрих-кода");
-        currentMode = 'barcode';
-        Quagga.onDetected(onDetectedCallback);
-      }
-    }
-
-    // Функция закрытия сканера и очистки интервалов
     function closeScanner() {
       Quagga.stop();
       overlay.style.display = 'none';
@@ -348,7 +254,6 @@
       }
     }
 
-    // Отображение оверлея результата
     function showResultOverlay(code) {
       scannedCode = code;
       typedQuantity = "";
@@ -369,7 +274,6 @@
       typedQuantityDiv.textContent = "";
     }
 
-    // Обработка нажатий клавиатуры
     keypadGrid.addEventListener('click', (e) => {
       if (!e.target.classList.contains('keypad-btn')) return;
       const value = e.target.textContent;
@@ -379,32 +283,78 @@
       }
     });
 
-    backBtn.addEventListener('click', () => {
-      hideResultOverlay();
-    });
-
+    backBtn.addEventListener('click', hideResultOverlay);
     delBtn.addEventListener('click', () => {
       typedQuantity = typedQuantity.slice(0, -1);
       typedQuantityDiv.textContent = typedQuantity;
     });
-
     confirmBtn.addEventListener('click', () => {
       console.log("Отсканированный код:", scannedCode);
       console.log("Количество:", typedQuantity);
       hideResultOverlay();
     });
 
-    // Основная функция сканирования с использованием QuaggaJS
+    function onDetectedCallback(result) {
+      const code = result.codeResult.code;
+      if (code === lastDetectedCode) {
+        matchCount++;
+      } else {
+        lastDetectedCode = code;
+        matchCount = 1;
+      }
+      if (matchCount >= 5) {
+        Quagga.offDetected(onDetectedCallback);
+        playBeep();
+        setTimeout(() => {
+          closeScanner();
+          showResultOverlay(code);
+        }, 300);
+      }
+    }
+
+    function scanQRCode() {
+      const video = overlay.querySelector('video') || document.querySelector('video');
+      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+      if (qrCode) {
+        playBeep();
+        setTimeout(() => {
+          closeScanner();
+          showResultOverlay(qrCode.data);
+        }, 300);
+      }
+    }
+
+    function switchMode() {
+      if (currentMode === 'barcode') {
+        console.log("Switching to QR mode");
+        Quagga.offDetected(onDetectedCallback);
+        currentMode = 'qr';
+        scanQRCode();
+      } else {
+        console.log("Switching to barcode mode");
+        currentMode = 'barcode';
+        Quagga.onDetected(onDetectedCallback);
+      }
+    }
+
     function initAndScan() {
       overlay.style.display = 'flex';
       scannerLine.style.display = 'block';
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
-      
+
       lastDetectedCode = null;
       matchCount = 0;
       currentMode = 'barcode';
 
+      // Инициализация Quagga2
       Quagga.init({
         inputStream: {
           name: "Live",
@@ -434,8 +384,7 @@
         }
         Quagga.start();
         Quagga.onDetected(onDetectedCallback);
-        // Переключаем режимы каждую секунду до получения результата
-        modeSwitchInterval = setInterval(switchMode, 500);
+        modeSwitchInterval = setInterval(switchMode, 1000);
       });
     }
 
