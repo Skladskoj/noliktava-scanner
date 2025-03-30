@@ -209,6 +209,229 @@
   </script>
 </head>
 <body>
-  <!-- Содержимое body, как в твоей версии: h1, кнопки, resultOverlay, keypadGrid, keypad-zero-row, keypadActions -->
+  <h1>Noliktava</h1>
+
+  <div id="buttonContainer">
+    <button id="startButton"></button>
+    <div id="buttonTextContainer">Skenēt</div>
+  </div>
+
+  <button id="backButton">Atpakaļ</button>
+
+  <div id="scannerOverlay"></div>
+  <div id="scannerLine"></div>
+
+  <!-- Оверлей с результатом (без клавиатуры) -->
+  <div id="resultOverlay">
+    <div id="topSection">
+      <div id="scannedValue"></div>
+      <div id="infoText">ievadiet preces skaitu</div>
+      <div id="typedQuantity"></div>
+    </div>
+  </div>
+
+  <!-- Клавиатура вынесена отдельно -->
+  <div id="bottomSection" style="display: none;">
+    <div class="keypad-grid" id="keypadGrid">
+      <button class="keypad-btn">1</button>
+      <button class="keypad-btn">2</button>
+      <button class="keypad-btn">3</button>
+      <button class="keypad-btn">4</button>
+      <button class="keypad-btn">5</button>
+      <button class="keypad-btn">6</button>
+      <button class="keypad-btn">7</button>
+      <button class="keypad-btn">8</button>
+      <button class="keypad-btn">9</button>
+      <div></div>
+      <button class="keypad-btn">0</button>
+      <div></div>
+    </div>
+    <div id="keypadActions">
+      <button id="backBtn">Atpakaļ</button>
+      <button id="delBtn">Nodzēst</button>
+      <button id="confirmBtn">Apstiprināt</button>
+    </div>
+  </div>
+</body>
+
+
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+
+  <script>
+    const startButton = document.getElementById('startButton');
+    const buttonContainer = document.getElementById('buttonContainer');
+    const backButton = document.getElementById('backButton');
+    const overlay = document.getElementById('scannerOverlay');
+    const scannerLine = document.getElementById('scannerLine');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const scannedValueDiv = document.getElementById('scannedValue');
+    const typedQuantityDiv = document.getElementById('typedQuantity');
+    const keypadGrid = document.getElementById('keypadGrid');
+    const backBtn = document.getElementById('backBtn');
+    const delBtn = document.getElementById('delBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    let scannedCode = "";
+    let typedQuantity = "";
+    let lastDetectedCode = null;
+    let matchCount = 0;
+    let modeSwitchInterval = null;
+    let currentMode = 'barcode';
+
+    function playBeep() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 1000;
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      setTimeout(() => { oscillator.stop(); }, 200);
+    }
+
+    function closeScanner() {
+      Quagga.stop();
+      overlay.style.display = 'none';
+      scannerLine.style.display = 'none';
+      backButton.style.display = 'none';
+      buttonContainer.style.display = 'block';
+      lastDetectedCode = null;
+      matchCount = 0;
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
+      }
+    }
+
+    function showResultOverlay(code) {
+      scannedCode = code;
+      typedQuantity = "";
+      scannedValueDiv.textContent = scannedCode;
+      typedQuantityDiv.textContent = typedQuantity;
+      resultOverlay.style.display = 'flex';
+      document.getElementById('bottomSection').style.display = 'flex';
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
+      
+      }
+    }
+
+    function hideResultOverlay() {
+      resultOverlay.style.display = 'none';
+      document.getElementById('bottomSection').style.display = 'none';
+      scannedCode = "";
+      typedQuantity = "";
+      scannedValueDiv.textContent = "";
+      typedQuantityDiv.textContent = "";
+    }
+
+    keypadGrid.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('keypad-btn')) return;
+      const value = e.target.textContent;
+      if (!isNaN(value)) {
+        typedQuantity += value;
+        typedQuantityDiv.textContent = typedQuantity;
+      }
+    });
+
+    backBtn.addEventListener('click', hideResultOverlay);
+
+    delBtn.addEventListener('click', () => {
+      typedQuantity = typedQuantity.slice(0, -1);
+      typedQuantityDiv.textContent = typedQuantity;
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      console.log("Отсканированный код:", scannedCode);
+      console.log("Количество:", typedQuantity);
+      hideResultOverlay();
+    });
+
+    function onDetectedCallback(result) {
+      const code = result.codeResult.code;
+      if (code === lastDetectedCode) {
+        matchCount++;
+      } else {
+        lastDetectedCode = code;
+        matchCount = 1;
+      }
+      if (matchCount >= 5) {
+        Quagga.offDetected(onDetectedCallback);
+        playBeep();
+        setTimeout(() => {
+          closeScanner();
+          showResultOverlay(code);
+        }, 300);
+      }
+    }
+
+    function scanQRCode() {
+      const video = overlay.querySelector('video') || document.querySelector('video');
+      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+      if (qrCode) {
+        playBeep();
+        closeScanner();
+        showResultOverlay(qrCode.data);
+      }
+    }
+
+    function switchMode() {
+      if (currentMode === 'barcode') {
+        Quagga.offDetected(onDetectedCallback);
+        currentMode = 'qr';
+        scanQRCode();
+      } else {
+        currentMode = 'barcode';
+        Quagga.onDetected(onDetectedCallback);
+      }
+    }
+
+    function initAndScan() {
+      overlay.style.display = 'flex';
+      scannerLine.style.display = 'block';
+      buttonContainer.style.display = 'none';
+      backButton.style.display = 'block';
+      lastDetectedCode = null;
+      matchCount = 0;
+      currentMode = 'barcode';
+
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: overlay,
+          constraints: { facingMode: "environment" }
+        },
+        decoder: {
+          readers: [
+            "code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader",
+            "code_39_vin_reader", "codabar_reader", "upc_reader", "upc_e_reader",
+            "i2of5_reader", "2of5_reader", "code_93_reader"
+          ]
+        }
+      }, function(err) {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        Quagga.start();
+        Quagga.onDetected(onDetectedCallback);
+        modeSwitchInterval = setInterval(switchMode, 500);
+      });
+    }
+
+    startButton.addEventListener('click', initAndScan);
+    backButton.addEventListener('click', closeScanner);
+  </script>
 </body>
 </html>
