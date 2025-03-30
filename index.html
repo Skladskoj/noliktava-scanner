@@ -101,6 +101,8 @@
       color: #fff;
       flex-direction: column;
       justify-content: space-between;
+      padding-bottom: 45vh; /* чтобы содержимое сверху не перекрывалось клавиатурой */
+
     }
     #topSection {
       padding: 20px;
@@ -122,15 +124,17 @@
 
     /* Обновлённая клавиатура */
 #bottomSection {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 0);
   width: 100vw;
-  height: 40vh; /* ← это 45% от высоты экрана */
+  height: 45vh;
   background: #000;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
 }
+
 
 
 
