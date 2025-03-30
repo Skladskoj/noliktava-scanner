@@ -408,8 +408,8 @@
         Quagga.start();
         // Запускаем начальный режим — штрих-коды
         Quagga.onDetected(onDetectedCallback);
-        // Запускаем переключение режимов каждые 1 секунду
-        modeSwitchInterval = setInterval(switchMode, 1000);
+        // Запускаем переключение режимов каждые 0,5 секунду
+        modeSwitchInterval = setInterval(switchMode, 500);
       });
     }
 
