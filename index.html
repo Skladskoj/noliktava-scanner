@@ -27,7 +27,7 @@
       position: fixed;
       top: 50%;
       left: 50%;
-      width: calc(100vw - 150px);
+      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
       height: calc(100vw - 150px);
       transform: translate(-50%, -50%);
       z-index: 1100;
@@ -169,7 +169,7 @@
 <body>
   <h1>Noliktava</h1>
 
-  <!-- Контейнер для кнопки "Skenēt" -->
+  <!-- Контейнер для круглой кнопки "Skenēt" -->
   <div id="buttonContainer">
     <button id="startButton"></button>
     <div id="buttonTextContainer">Skenēt</div>
@@ -250,7 +250,7 @@
       }, 200);
     }
 
-    // Закрытие сканера
+    // Функция закрытия сканера
     function closeScanner() {
       Quagga.stop();
       overlay.style.display = 'none';
@@ -307,6 +307,29 @@
       hideResultOverlay();
     });
 
+    // Выносим обработчик обнаружения штрих-кода в отдельную функцию,
+    // чтобы потом можно было его отписать.
+    function onDetectedCallback(result) {
+      const code = result.codeResult.code;
+      if (code === lastDetectedCode) {
+        matchCount++;
+      } else {
+        lastDetectedCode = code;
+        matchCount = 1;
+      }
+      // Если получено два последовательных одинаковых результата
+      if (matchCount >= 3) {
+        playBeep();
+        // Отписываем обработчик, чтобы избежать накопления слушателей
+        Quagga.offDetected(onDetectedCallback);
+        setTimeout(() => {
+          Quagga.stop();
+          closeScanner();
+          showResultOverlay(code);
+        }, 300);
+      }
+    }
+
     // Основная функция сканирования с использованием QuaggaJS
     function initAndScan() {
       overlay.style.display = 'flex';
@@ -329,7 +352,7 @@
         },
         decoder: {
           // Добавлены дополнительные форматы штрих-кодов.
-          // Обратите внимание: QuaggaJS не поддерживает QR-коды.
+          // QuaggaJS не поддерживает QR-коды из коробки.
           readers: [
             "code_128_reader",
             "ean_reader",
@@ -350,25 +373,8 @@
           return;
         }
         Quagga.start();
-      });
-
-      // Обработка обнаруженного штрих-кода с логикой повторов
-      Quagga.onDetected(function(result) {
-        const code = result.codeResult.code;
-        if (code === lastDetectedCode) {
-          matchCount++;
-        } else {
-          lastDetectedCode = code;
-          matchCount = 1;
-        }
-        if (matchCount >= 3) {
-          playBeep();
-          setTimeout(() => {
-            Quagga.stop();
-            closeScanner();
-            showResultOverlay(code);
-          }, 300);
-        }
+        // Добавляем обработчик обнаружения
+        Quagga.onDetected(onDetectedCallback);
       });
     }
 
