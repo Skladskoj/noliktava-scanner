@@ -14,13 +14,12 @@
     }
 
     h1 {
-	position: absolute;
-		top: 10px;
-	  font-size: 5em;
+      position: absolute;
+      top: 10px;
+      font-size: 5em;
       left: 50%;
       transform: translateX(-50%);
       color: #fff;
-	
     }
 
     /* Контейнер для кнопки "Skenēt" с текстом */
@@ -45,18 +44,17 @@
 
     /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: auto;           /* ширина определяется содержимым */
-  transform: translate(-50%, -50%);
-  white-space: nowrap;   /* не переносить текст */
-  font-size: calc((100vw - 100px) * 0.19);
-  font-weight: bold;
-  color: white;
-  pointer-events: none;  /* клики проходят сквозь контейнер */
-}
-
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: auto;           /* ширина определяется содержимым */
+      transform: translate(-50%, -50%);
+      white-space: nowrap;   /* не переносить текст */
+      font-size: calc((100vw - 100px) * 0.19);
+      font-weight: bold;
+      color: white;
+      pointer-events: none;  /* клики проходят сквозь контейнер */
+    }
 
     /* Кнопка "Atpakaļ" (прямоугольная, в правом нижнем углу) */
     #backButton {
@@ -180,7 +178,7 @@
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <video id="preview"></video>
+    <!-- QuaggaJS сам создаст видеопоток в этом элементе -->
   </div>
 
   <!-- Линия сканирования -->
@@ -212,21 +210,20 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <!-- Подключение библиотеки QuaggaJS -->
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
   <script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElement = document.getElementById('preview');
+    // Элементы интерфейса
     const startButton = document.getElementById('startButton');
     const buttonContainer = document.getElementById('buttonContainer');
-    const backButton = document.getElementById('backButton'); // кнопка в углу
+    const backButton = document.getElementById('backButton');
     const overlay = document.getElementById('scannerOverlay');
     const scannerLine = document.getElementById('scannerLine');
-
     const resultOverlay = document.getElementById('resultOverlay');
     const scannedValueDiv = document.getElementById('scannedValue');
     const typedQuantityDiv = document.getElementById('typedQuantity');
     const keypadGrid = document.getElementById('keypadGrid');
-    const backBtn = document.getElementById('backBtn'); // кнопка "Atpakaļ" в клавиатуре
+    const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
 
@@ -248,14 +245,12 @@
       }, 200);
     }
 
-    // Закрытие сканера: скрываем оверлей сканера и переключаем кнопки
+    // Закрытие сканера: останавливаем Quagga, скрываем оверлей и переключаем кнопки
     function closeScanner() {
-      codeReader.reset();
+      Quagga.stop();
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
-      // Скрываем кнопку "Atpakaļ" в углу
       backButton.style.display = 'none';
-      // Показываем контейнер с круглой кнопкой "Skenēt"
       buttonContainer.style.display = 'block';
     }
 
@@ -304,73 +299,47 @@
       hideResultOverlay();
     });
 
-    // Основная функция сканирования
-    async function initAndScan() {
+    // Основная функция сканирования с использованием QuaggaJS
+    function initAndScan() {
       overlay.style.display = 'flex';
       scannerLine.style.display = 'block';
-      codeReader.reset();
-
-      // При запуске сканирования: скрываем контейнер с кнопкой "Skenēt"
       buttonContainer.style.display = 'none';
-      // Показываем кнопку "Atpakaļ" в углу
       backButton.style.display = 'block';
 
-      let lastResult = null;
-      let matchCount = 0;
-
-      try {
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 3840, max: 3840 },
-            height: { ideal: 2160, max: 2160 },
-            advanced: [{ focusMode: "continuous" }]
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: overlay, // Видеопоток будет отображаться здесь
+          constraints: {
+            facingMode: "environment"
           }
-        };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const videoTrack = stream.getVideoTracks()[0];
-        const capabilities = videoTrack.getCapabilities();
-        if (capabilities.focusMode) {
-          await videoTrack.applyConstraints({ focusMode: "continuous" });
+        },
+        decoder: {
+          // Указываем нужные форматы штрих-кодов
+          readers: ["code_128_reader", "ean_reader", "ean_8_reader"]
         }
-        stream.getTracks().forEach(track => track.stop());
-
-        const devices = await codeReader.listVideoInputDevices();
-        let backCameraId;
-        const macroDevice = devices.find(device =>
-          device.label.toLowerCase().includes("macro") || device.label.toLowerCase().includes("макро")
-        );
-        if (macroDevice) {
-          backCameraId = macroDevice.deviceId;
-        } else {
-          backCameraId = devices.find(device =>
-            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("задн")
-          )?.deviceId || devices[0].deviceId;
+      }, function(err) {
+        if (err) {
+          console.error(err);
+          return;
         }
+        Quagga.start();
+      });
 
-        codeReader.decodeFromVideoDevice(backCameraId, videoElement, (result, err) => {
-          if (result) {
-            const text = result.getText();
-            if (text === lastResult) {
-              matchCount++;
-            } else {
-              lastResult = text;
-              matchCount = 1;
-            }
-            if (matchCount >= 3) {
-              playBeep();
-              setTimeout(() => {
-                closeScanner();
-                showResultOverlay(text);
-              }, 300);
-            }
-          }
-        });
-      } catch (err) {
-        console.error(err);
-      }
+      // Обработка обнаруженного штрих-кода
+      Quagga.onDetected(function(result) {
+        const code = result.codeResult.code;
+        playBeep();
+        setTimeout(() => {
+          Quagga.stop();
+          closeScanner();
+          showResultOverlay(code);
+        }, 300);
+      });
     }
 
+    // Назначение обработчиков событий
     startButton.addEventListener('click', initAndScan);
     backButton.addEventListener('click', closeScanner);
   </script>
