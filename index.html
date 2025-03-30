@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Noliktava (ZXing Browser)</title>
+  <title>Noliktava</title>
   <style>
     /* Базовые стили */
     html, body {
@@ -20,7 +20,7 @@
       transform: translateX(-50%);
       color: #fff;
     }
-    /* Контейнер для кнопки "Skenēt" */
+    /* Контейнер для кнопки "Skenēt" с текстом */
     #buttonContainer {
       position: fixed;
       top: 50%;
@@ -30,16 +30,15 @@
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
-    /* Круглая кнопка */
+    /* Круглая кнопка без текста */
     #startButton {
       width: 100%;
       height: 100%;
       border: none;
       border-radius: 50%;
       background: orange;
-      cursor: pointer;
     }
-    /* Текст на кнопке */
+    /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
       position: absolute;
       top: 50%;
@@ -51,7 +50,7 @@
       color: white;
       pointer-events: none;
     }
-    /* Кнопка "Atpakaļ" */
+    /* Кнопка "Atpakaļ" (правый нижний угол) */
     #backButton {
       position: fixed;
       right: 30px;
@@ -65,34 +64,43 @@
       color: white;
       border: none;
       border-radius: 20px;
-      cursor: pointer;
       display: none;
     }
     /* Оверлей сканера */
     #scannerOverlay {
       display: none;
       position: absolute;
-      top: 0px;
+      top: 300px;
       width: 100%;
       height: 100%;
+      object-fit: cover;
       background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
-      display: flex;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
     }
-    /* Видео */
     video {
       width: 100%;
       height: auto;
       max-height: 100vh;
     }
+    /* Красная линия сканирования */
+    #scannerLine {
+      position: absolute;
+      top: 50%;
+      left: 100px;
+      width: calc(100% - 200px);
+      height: 10px;
+      background-color: red;
+      z-index: 1500;
+      display: none;
+    }
     /* Оверлей результата */
     #resultOverlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       width: 100vw;
       height: 100vh;
       background: #000;
@@ -151,7 +159,7 @@
 <body>
   <h1>Noliktava</h1>
 
-  <!-- Контейнер для кнопки "Skenēt" -->
+  <!-- Контейнер для круглой кнопки "Skenēt" -->
   <div id="buttonContainer">
     <button id="startButton"></button>
     <div id="buttonTextContainer">Skenēt</div>
@@ -162,8 +170,11 @@
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <video id="video" autoplay></video>
+    <!-- QuaggaJS создаст видеопоток здесь -->
   </div>
+
+  <!-- Линия сканирования -->
+  <div id="scannerLine"></div>
 
   <!-- Оверлей результата -->
   <div id="resultOverlay">
@@ -191,27 +202,33 @@
     </div>
   </div>
 
-  <!-- Подключаем пакет @zxing/browser -->
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <!-- Подключаем библиотеки -->
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+
   <script>
     // Элементы интерфейса
     const startButton = document.getElementById('startButton');
+    const buttonContainer = document.getElementById('buttonContainer');
     const backButton = document.getElementById('backButton');
-    const scannerOverlay = document.getElementById('scannerOverlay');
-    const video = document.getElementById('video');
+    const overlay = document.getElementById('scannerOverlay');
+    const scannerLine = document.getElementById('scannerLine');
     const resultOverlay = document.getElementById('resultOverlay');
     const scannedValueDiv = document.getElementById('scannedValue');
+    const typedQuantityDiv = document.getElementById('typedQuantity');
     const keypadGrid = document.getElementById('keypadGrid');
     const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
-    const buttonContainer = document.getElementById('buttonContainer');
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Создаём объект сканера
-    const codeReader = new ZXing.BrowserMultiFormatReader();
+    let lastDetectedCode = null;
+    let matchCount = 0;
+    let modeSwitchInterval = null;
+    let currentMode = 'barcode'; // текущий режим: "barcode" или "qr"
 
+    // Функция звукового сигнала
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -221,71 +238,184 @@
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       oscillator.start();
-      setTimeout(() => oscillator.stop(), 200);
+      setTimeout(() => {
+        oscillator.stop();
+      }, 200);
     }
 
-    // Инициализация и запуск сканирования
-    function initAndScan() {
-      scannerOverlay.style.display = 'flex';
-      backButton.style.display = 'block';
-      buttonContainer.style.display = 'none';
-
-      codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-        if (result) {
-          playBeep();
-          console.log("Считанный код:", result.text);
-          // Останавливаем сканирование, чтобы не получать повторные результаты
-          codeReader.reset();
-          scannerOverlay.style.display = 'none';
-          resultOverlay.style.display = 'flex';
-          scannedCode = result.text;
-          scannedValueDiv.textContent = scannedCode;
-        }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.error(err);
-        }
-      });
-    }
-
+    // Функция закрытия сканера и очистки интервала переключения
     function closeScanner() {
-      codeReader.reset();
-      scannerOverlay.style.display = 'none';
+      // Останавливаем QuaggaJS окончательно (например, при подтверждении результата)
+      Quagga.stop();
+      overlay.style.display = 'none';
+      scannerLine.style.display = 'none';
       backButton.style.display = 'none';
       buttonContainer.style.display = 'block';
+      lastDetectedCode = null;
+      matchCount = 0;
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
+      }
     }
 
-    // Обработка нажатий клавиатуры (пример)
+    // Отображение оверлея результата
+    function showResultOverlay(code) {
+      scannedCode = code;
+      typedQuantity = "";
+      scannedValueDiv.textContent = scannedCode;
+      typedQuantityDiv.textContent = typedQuantity;
+      resultOverlay.style.display = 'flex';
+      // Останавливаем переключение режимов, если код найден
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
+      }
+    }
+
+    function hideResultOverlay() {
+      resultOverlay.style.display = 'none';
+      scannedCode = "";
+      typedQuantity = "";
+      scannedValueDiv.textContent = "";
+      typedQuantityDiv.textContent = "";
+    }
+
+    // Обработка нажатий клавиатуры
     keypadGrid.addEventListener('click', (e) => {
       if (!e.target.classList.contains('keypad-btn')) return;
       const value = e.target.textContent;
       if (!isNaN(value)) {
         typedQuantity += value;
-        document.getElementById('typedQuantity').textContent = typedQuantity;
+        typedQuantityDiv.textContent = typedQuantity;
       }
     });
 
+    // Кнопка "Atpakaļ" на клавиатуре
     backBtn.addEventListener('click', () => {
-      resultOverlay.style.display = 'none';
+      hideResultOverlay();
     });
 
+    // Кнопка "Nodzēst" — удалить последний символ
     delBtn.addEventListener('click', () => {
       typedQuantity = typedQuantity.slice(0, -1);
-      document.getElementById('typedQuantity').textContent = typedQuantity;
+      typedQuantityDiv.textContent = typedQuantity;
     });
 
+    // Кнопка "Apstiprināt"
     confirmBtn.addEventListener('click', () => {
       console.log("Отсканированный код:", scannedCode);
       console.log("Количество:", typedQuantity);
-      resultOverlay.style.display = 'none';
+      hideResultOverlay();
     });
 
-    // Добавляем обработчик для мобильных: срабатывание сразу при касании
-    startButton.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      initAndScan();
-    });
+    // Обработчик обнаружения штрих-кода QuaggaJS
+    function onDetectedCallback(result) {
+  const code = result.codeResult.code;
+  if (code === lastDetectedCode) {
+    matchCount++;
+  } else {
+    lastDetectedCode = code;
+    matchCount = 1;
+  }
+  // При достижении порога сразу отписываемся, чтобы не получить повторное срабатывание
+  if (matchCount >= 5) {
+    Quagga.offDetected(onDetectedCallback);
+    playBeep();
+    setTimeout(() => {
+      closeScanner();
+      showResultOverlay(code);
+    }, 300);
+  }
+}
+
+
+    // Функция сканирования QR-кода с использованием jsQR
+    function scanQRCode() {
+      const video = overlay.querySelector('video') || document.querySelector('video');
+      if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+      if (qrCode) {
+        playBeep();
+        closeScanner();
+        showResultOverlay(qrCode.data);
+      }
+    }
+
+    // Функция переключения режима
+    function switchMode() {
+      if (currentMode === 'barcode') {
+        // Переключаемся на режим QR
+        console.log("Переключаемся на режим QR");
+        Quagga.offDetected(onDetectedCallback);
+        currentMode = 'qr';
+        // Немедленно пытаемся считать QR-код
+        scanQRCode();
+      } else {
+        // Переключаемся на режим штрих-кода
+        console.log("Переключаемся на режим штрих-кода");
+        currentMode = 'barcode';
+        Quagga.onDetected(onDetectedCallback);
+      }
+    }
+
+    // Основная функция сканирования с использованием QuaggaJS
+    function initAndScan() {
+      overlay.style.display = 'flex';
+      scannerLine.style.display = 'block';
+      buttonContainer.style.display = 'none';
+      backButton.style.display = 'block';
+
+      lastDetectedCode = null;
+      matchCount = 0;
+      currentMode = 'barcode';
+
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: overlay,
+          constraints: {
+            facingMode: "environment"
+          }
+        },
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "code_39_vin_reader",
+            "codabar_reader",
+            "upc_reader",
+            "upc_e_reader",
+            "i2of5_reader",
+            "2of5_reader",
+            "code_93_reader"
+          ]
+        }
+      }, function(err) {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        Quagga.start();
+        // Запускаем начальный режим — штрих-коды
+        Quagga.onDetected(onDetectedCallback);
+        // Запускаем переключение режимов каждые 0,5 секунду
+        modeSwitchInterval = setInterval(switchMode, 500);
+      });
+    }
+
     startButton.addEventListener('click', initAndScan);
-
     backButton.addEventListener('click', closeScanner);
   </script>
 </body>
