@@ -12,7 +12,6 @@
       background: #000;
       color: #fff;
     }
-
     h1 {
       position: absolute;
       top: 10px;
@@ -21,18 +20,16 @@
       transform: translateX(-50%);
       color: #fff;
     }
-
     /* Контейнер для кнопки "Skenēt" с текстом */
     #buttonContainer {
       position: fixed;
       top: 50%;
       left: 50%;
-      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
+      width: calc(100vw - 150px);
       height: calc(100vw - 150px);
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
-
     /* Круглая кнопка без текста */
     #startButton {
       width: 100%;
@@ -41,7 +38,6 @@
       border-radius: 50%;
       background: orange;
     }
-
     /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
       position: absolute;
@@ -54,7 +50,6 @@
       color: white;
       pointer-events: none;
     }
-
     /* Кнопка "Atpakaļ" (правый нижний угол) */
     #backButton {
       position: fixed;
@@ -71,7 +66,6 @@
       border-radius: 20px;
       display: none;
     }
-
     /* Оверлей сканера */
     #scannerOverlay {
       display: none;
@@ -85,13 +79,11 @@
       align-items: center;
       flex-direction: column;
     }
-
     video {
       width: 100%;
       height: auto;
       max-height: 100vh;
     }
-
     /* Красная линия сканирования */
     #scannerLine {
       position: absolute;
@@ -103,7 +95,6 @@
       z-index: 1500;
       display: none;
     }
-
     /* Оверлей результата */
     #resultOverlay {
       display: none;
@@ -117,7 +108,6 @@
       flex-direction: column;
       justify-content: space-between;
     }
-
     /* Верхняя часть результата */
     #topSection {
       padding: 20px;
@@ -136,7 +126,6 @@
       font-size: 2.5em;
       margin-bottom: 10px;
     }
-
     /* Нижняя часть – клавиатура */
     #bottomSection {
       background: #111;
@@ -231,9 +220,10 @@
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Переменные для проверки повторов результата
-    let lastDetectedCode = null;
-    let matchCount = 0;
+    // Объект для хранения всех полученных кодов
+    let detectionCounts = {};
+    // Задаем требуемый порог совпадений (можно менять)
+    const THRESHOLD = 3;
 
     // Функция звукового сигнала
     function playBeep() {
@@ -257,9 +247,8 @@
       scannerLine.style.display = 'none';
       backButton.style.display = 'none';
       buttonContainer.style.display = 'block';
-      // Сброс переменных для повторного сканирования
-      lastDetectedCode = null;
-      matchCount = 0;
+      // Сброс объекта с результатами для следующей сессии
+      detectionCounts = {};
     }
 
     // Показ оверлея результата
@@ -307,20 +296,16 @@
       hideResultOverlay();
     });
 
-    // Выносим обработчик обнаружения штрих-кода в отдельную функцию,
-    // чтобы потом можно было его отписать.
+    // Обработчик обнаружения штрих-кода, который сохраняет все результаты
     function onDetectedCallback(result) {
       const code = result.codeResult.code;
-      if (code === lastDetectedCode) {
-        matchCount++;
-      } else {
-        lastDetectedCode = code;
-        matchCount = 1;
-      }
-      // Если получено два последовательных одинаковых результата
-      if (matchCount >= 4) {
+      // Обновляем счетчик для полученного кода
+      detectionCounts[code] = (detectionCounts[code] || 0) + 1;
+      console.log("Сканируемый код:", code, "Счетчик:", detectionCounts[code]);
+      // Если для этого кода количество срабатываний достигло порога
+      if (detectionCounts[code] >= THRESHOLD) {
         playBeep();
-        // Отписываем обработчик, чтобы избежать накопления слушателей
+        // Отписываем обработчик, чтобы не накапливать события
         Quagga.offDetected(onDetectedCallback);
         setTimeout(() => {
           Quagga.stop();
@@ -337,9 +322,8 @@
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
 
-      // Сброс переменных перед началом сканирования
-      lastDetectedCode = null;
-      matchCount = 0;
+      // Сброс объекта с результатами перед началом новой сессии
+      detectionCounts = {};
 
       Quagga.init({
         inputStream: {
@@ -352,7 +336,6 @@
         },
         decoder: {
           // Добавлены дополнительные форматы штрих-кодов.
-          // QuaggaJS не поддерживает QR-коды из коробки.
           readers: [
             "code_128_reader",
             "ean_reader",
