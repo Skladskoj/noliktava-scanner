@@ -164,24 +164,23 @@
   align-items: center;
 }
    #keypadActions {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
   padding: 10px;
-  height: 100px;
+  height: 150px;
   background: #111;
   box-sizing: border-box;
      margin-top: 20px;
 }
 #keypadActions button {
-  flex: 1;
-  margin: 0 10px;
   font-size: 3em;
   background: orange;
   border: none;
   border-radius: 10px;
   color: white;
   height: 150px;
+  width: 100%;
 }
 
   </style>
