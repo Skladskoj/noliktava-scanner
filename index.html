@@ -66,21 +66,19 @@
       border-radius: 20px;
       display: none;
     }
-    /* Оверлей сканера */
+    /* Оверлей сканера с видео */
     #scannerOverlay {
       display: none;
       position: absolute;
-      top: 0px;
+      top: 300px;
       width: 100%;
       height: 100%;
-      object-fit: cover;
       background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
       justify-content: center;
       align-items: center;
       flex-direction: column;
     }
-    /* Видео с камеры */
     #scannerOverlay video {
       width: 100%;
       height: auto;
@@ -203,7 +201,7 @@
     </div>
   </div>
 
-  <!-- Подключаем ZXing Browser library -->
+  <!-- Подключаем ZXing Browser -->
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <script>
     // Элементы интерфейса
@@ -219,6 +217,7 @@
     const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
+    
     let scannedCode = "";
     let typedQuantity = "";
     let codeReader = null;
@@ -296,22 +295,37 @@
     });
     
     // Основная функция сканирования с использованием ZXing
-    function initAndScan() {
+    async function initAndScan() {
       overlay.style.display = 'flex';
       scannerLine.style.display = 'block';
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
       
       codeReader = new ZXing.BrowserMultiFormatReader();
-      codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-        if (result) {
-          playBeep();
-          codeReader.reset();
-          closeScanner();
-          showResultOverlay(result.text);
+      
+      try {
+        // Получаем список видео-устройств
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        let selectedDeviceId = null;
+        if (videoInputDevices && videoInputDevices.length) {
+          // Если возможно, выбираем заднюю камеру
+          selectedDeviceId = videoInputDevices.find(device => device.label.toLowerCase().includes('back'))?.deviceId || videoInputDevices[0].deviceId;
         }
-        // Ошибки можно обрабатывать по необходимости (например, игнорировать отсутствие кода)
-      });
+        // Запускаем сканирование
+        codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+          if (result) {
+            playBeep();
+            codeReader.reset();
+            closeScanner();
+            showResultOverlay(result.text);
+          }
+          if (err && !(err instanceof ZXing.NotFoundException)) {
+            console.error(err);
+          }
+        });
+      } catch (error) {
+        console.error("Ошибка доступа к камере:", error);
+      }
     }
     
     startButton.addEventListener('click', initAndScan);
