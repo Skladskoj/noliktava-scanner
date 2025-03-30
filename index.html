@@ -125,17 +125,17 @@
     /* Обновлённая клавиатура */
 #bottomSection {
   position: fixed;
-  bottom: env(safe-area-inset-bottom, 0);
+  bottom: 0;
   width: 100vw;
-  height: 45vh;
+  height: 50vh;
   background: #000;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  box-sizing: border-box;
+
+  /* Приподнять чуть выше и учесть safe-area на iPhone */
+  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 10px);
 }
-
-
 
 
 .keypad-grid {
@@ -147,6 +147,7 @@
   box-sizing: border-box;
   flex: 1;
 }
+
 
 .keypad-btn {
   background: #333;
