@@ -107,37 +107,39 @@
       text-align: center;
     }
     #scannedValue {
-      font-size: 3em;
+      font-size: 4em;
       margin-bottom: 10px;
     }
     #infoText {
-      font-size: 1.2em;
+      font-size: 2em;
       opacity: 0.8;
       margin-bottom: 10px;
     }
     #typedQuantity {
-      font-size: 2.5em;
+      font-size: 5em;
       margin-bottom: 10px;
     }
 
     /* Обновлённая клавиатура */
-    #bottomSection {
-      width: 100vw;
-      height: 50vh;
-      display: flex;
-      flex-direction: column;
-      background: #000;
-    }
+#bottomSection {
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  width: 100vw;
+  height: calc(100vh - 200px); /* или auto + flex: 1 если нужно гибко */
+}
+
     .keypad-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(4, 1fr);
-      grid-gap: 10px;
-      height: 50%;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px;
-    }
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  grid-gap: 10px;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+}
+
     .keypad-btn {
       background: #333;
       color: #fff;
@@ -152,14 +154,15 @@
       box-sizing: border-box;
     }
     #keypadActions {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      padding: 10px;
-      background: #111;
-      height: 50%;
-      box-sizing: border-box;
-    }
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px;
+  background: #111;
+  height: 150px;
+  box-sizing: border-box;
+}
+
     #keypadActions button {
       flex: 1;
       margin: 0 10px;
