@@ -225,8 +225,8 @@
     let typedQuantity = "";
     let lastDetectedCode = null;
     let matchCount = 0;
-    let fallbackTimeout = null;
-    let qrScanInterval = null;
+    let modeSwitchInterval = null;
+    let currentMode = 'barcode'; // текущий режим: "barcode" или "qr"
 
     // Функция звукового сигнала
     function playBeep() {
@@ -243,9 +243,9 @@
       }, 200);
     }
 
-    // Функция закрытия сканера и очистки таймеров/интервалов
+    // Функция закрытия сканера и очистки интервала переключения
     function closeScanner() {
-      // Завершаем работу QuaggaJS только при окончательном закрытии результата
+      // Останавливаем QuaggaJS окончательно (например, при подтверждении результата)
       Quagga.stop();
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
@@ -253,13 +253,9 @@
       buttonContainer.style.display = 'block';
       lastDetectedCode = null;
       matchCount = 0;
-      if (fallbackTimeout) {
-        clearTimeout(fallbackTimeout);
-        fallbackTimeout = null;
-      }
-      if (qrScanInterval) {
-        clearInterval(qrScanInterval);
-        qrScanInterval = null;
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
       }
     }
 
@@ -270,6 +266,11 @@
       scannedValueDiv.textContent = scannedCode;
       typedQuantityDiv.textContent = typedQuantity;
       resultOverlay.style.display = 'flex';
+      // Останавливаем переключение режимов, если код найден
+      if (modeSwitchInterval) {
+        clearInterval(modeSwitchInterval);
+        modeSwitchInterval = null;
+      }
     }
 
     function hideResultOverlay() {
@@ -317,12 +318,10 @@
         lastDetectedCode = code;
         matchCount = 1;
       }
+      // Если получено достаточное число последовательных совпадений
       if (matchCount >= 5) {
         playBeep();
-        clearTimeout(fallbackTimeout);
-        Quagga.offDetected(onDetectedCallback); // отписываем обработчик, чтобы не мешал fallback
         setTimeout(() => {
-          closeQRCodeFallback(); // останавливаем резервное QR-сканирование, если запущено
           closeScanner();
           showResultOverlay(code);
         }, 300);
@@ -344,24 +343,25 @@
       const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
       if (qrCode) {
         playBeep();
-        clearInterval(qrScanInterval);
-        qrScanInterval = null;
         closeScanner();
         showResultOverlay(qrCode.data);
       }
     }
 
-    // Запуск резервного сканирования QR-кода
-    function startQRCodeFallback() {
-      console.log("Запуск резервного QR-сканирования");
-      qrScanInterval = setInterval(scanQRCode, 500);
-    }
-
-    // Остановка резервного сканирования QR-кода
-    function closeQRCodeFallback() {
-      if (qrScanInterval) {
-        clearInterval(qrScanInterval);
-        qrScanInterval = null;
+    // Функция переключения режима
+    function switchMode() {
+      if (currentMode === 'barcode') {
+        // Переключаемся на режим QR
+        console.log("Переключаемся на режим QR");
+        Quagga.offDetected(onDetectedCallback);
+        currentMode = 'qr';
+        // Немедленно пытаемся считать QR-код
+        scanQRCode();
+      } else {
+        // Переключаемся на режим штрих-кода
+        console.log("Переключаемся на режим штрих-кода");
+        currentMode = 'barcode';
+        Quagga.onDetected(onDetectedCallback);
       }
     }
 
@@ -374,6 +374,7 @@
 
       lastDetectedCode = null;
       matchCount = 0;
+      currentMode = 'barcode';
 
       Quagga.init({
         inputStream: {
@@ -405,15 +406,10 @@
           return;
         }
         Quagga.start();
+        // Запускаем начальный режим — штрих-коды
         Quagga.onDetected(onDetectedCallback);
-        // Если за 5 секунд не распознано ничего, отписываем Quagga и запускаем резервное QR-сканирование
-        fallbackTimeout = setTimeout(() => {
-          if (!lastDetectedCode) {
-            console.log("Не удалось распознать штрих-код, переключаемся на QR-сканирование.");
-            Quagga.offDetected(onDetectedCallback);
-            startQRCodeFallback();
-          }
-        }, 5000);
+        // Запускаем переключение режимов каждые 1 секунду
+        modeSwitchInterval = setInterval(switchMode, 1000);
       });
     }
 
