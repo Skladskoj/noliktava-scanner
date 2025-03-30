@@ -122,21 +122,25 @@
 
     /* Обновлённая клавиатура */
 #bottomSection {
+  position: absolute;
+  bottom: 0;
+  width: 100vw;
+  height: 550px;
+  background: #000;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  background: #000;
-  width: 100vw;
-  height: calc(100vh - 200px); /* или auto + flex: 1 если нужно гибко */
 }
 
-  .keypad-grid {
+
+.keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-auto-rows: 200px;
   gap: 10px;
-  width: 100vw;
   padding: 10px;
   box-sizing: border-box;
+  flex: 1;
 }
 
 .keypad-btn {
@@ -156,26 +160,27 @@
 
 
 
-    #keypadActions {
+
+   #keypadActions {
   display: flex;
   justify-content: space-around;
   align-items: center;
   padding: 10px;
+  height: 100px;
   background: #111;
-  height: 150px;
   box-sizing: border-box;
 }
+#keypadActions button {
+  flex: 1;
+  margin: 0 10px;
+  font-size: 2em;
+  background: orange;
+  border: none;
+  border-radius: 15px;
+  color: white;
+  height: 100%;
+}
 
-    #keypadActions button {
-      flex: 1;
-      margin: 0 10px;
-      height: 100%;
-      font-size: 2.5em;
-      background: orange;
-      border: none;
-      border-radius: 20px;
-      color: white;
-    }
   </style>
 </head>
 <body>
