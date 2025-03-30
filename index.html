@@ -245,6 +245,7 @@
 
     // Функция закрытия сканера и очистки таймеров/интервалов
     function closeScanner() {
+      // Завершаем работу QuaggaJS только при окончательном закрытии результата
       Quagga.stop();
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
@@ -316,14 +317,12 @@
         lastDetectedCode = code;
         matchCount = 1;
       }
-      // Если получено несколько последовательных одинаковых результатов
       if (matchCount >= 5) {
         playBeep();
         clearTimeout(fallbackTimeout);
-        Quagga.offDetected(onDetectedCallback);
+        Quagga.offDetected(onDetectedCallback); // отписываем обработчик, чтобы не мешал fallback
         setTimeout(() => {
-          Quagga.stop();
-          closeQRCodeFallback(); // если запущено резервное сканирование QR, остановить его
+          closeQRCodeFallback(); // останавливаем резервное QR-сканирование, если запущено
           closeScanner();
           showResultOverlay(code);
         }, 300);
@@ -332,19 +331,16 @@
 
     // Функция сканирования QR-кода с использованием jsQR
     function scanQRCode() {
-      // Получаем видеопоток, созданный QuaggaJS
       const video = overlay.querySelector('video') || document.querySelector('video');
       if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) {
         return;
       }
-      // Создаем временный canvas для захвата кадра
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const context = canvas.getContext('2d');
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      // Используем jsQR для распознавания QR-кода
       const qrCode = jsQR(imageData.data, canvas.width, canvas.height);
       if (qrCode) {
         playBeep();
@@ -358,7 +354,7 @@
     // Запуск резервного сканирования QR-кода
     function startQRCodeFallback() {
       console.log("Запуск резервного QR-сканирования");
-      qrScanInterval = setInterval(scanQRCode, 500); // проверяем каждые 500 мс
+      qrScanInterval = setInterval(scanQRCode, 500);
     }
 
     // Остановка резервного сканирования QR-кода
@@ -410,15 +406,14 @@
         }
         Quagga.start();
         Quagga.onDetected(onDetectedCallback);
-        // Если в течение 10 секунд не будет распознано ни одного штрих-кода,
-        // переключаемся на резервное сканирование QR-кода
+        // Если за 5 секунд не распознано ничего, отписываем Quagga и запускаем резервное QR-сканирование
         fallbackTimeout = setTimeout(() => {
           if (!lastDetectedCode) {
             console.log("Не удалось распознать штрих-код, переключаемся на QR-сканирование.");
-            Quagga.stop();
+            Quagga.offDetected(onDetectedCallback);
             startQRCodeFallback();
           }
-        }, 10000);
+        }, 5000);
       });
     }
 
