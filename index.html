@@ -194,38 +194,41 @@
   <button id="backButton">Atpakaļ</button>
 
   <div id="scannerOverlay"></div>
-
   <div id="scannerLine"></div>
 
+  <!-- Оверлей с результатом (без клавиатуры) -->
   <div id="resultOverlay">
     <div id="topSection">
       <div id="scannedValue"></div>
       <div id="infoText">ievadiet preces skaitu</div>
       <div id="typedQuantity"></div>
     </div>
+  </div>
+
+  <!-- Клавиатура вынесена отдельно -->
+  <div id="bottomSection" style="display: none;">
+    <div class="keypad-grid" id="keypadGrid">
+      <button class="keypad-btn">1</button>
+      <button class="keypad-btn">2</button>
+      <button class="keypad-btn">3</button>
+      <button class="keypad-btn">4</button>
+      <button class="keypad-btn">5</button>
+      <button class="keypad-btn">6</button>
+      <button class="keypad-btn">7</button>
+      <button class="keypad-btn">8</button>
+      <button class="keypad-btn">9</button>
+      <div></div>
+      <button class="keypad-btn">0</button>
+      <div></div>
     </div>
-    <div id="bottomSection">
-      <div class="keypad-grid" id="keypadGrid">
-        <button class="keypad-btn">1</button>
-        <button class="keypad-btn">2</button>
-        <button class="keypad-btn">3</button>
-        <button class="keypad-btn">4</button>
-        <button class="keypad-btn">5</button>
-        <button class="keypad-btn">6</button>
-        <button class="keypad-btn">7</button>
-        <button class="keypad-btn">8</button>
-        <button class="keypad-btn">9</button>
-        <div></div>
-        <button class="keypad-btn">0</button>
-        <div>
-      </div>
-      <div id="keypadActions">
-        <button id="backBtn">Atpakaļ</button>
-        <button id="delBtn">Nodzēst</button>
-        <button id="confirmBtn">Apstiprināt</button>
-      </div>
+    <div id="keypadActions">
+      <button id="backBtn">Atpakaļ</button>
+      <button id="delBtn">Nodzēst</button>
+      <button id="confirmBtn">Apstiprināt</button>
     </div>
   </div>
+</body>
+
 
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
