@@ -72,10 +72,27 @@
       display: none;
     }
 
+    /* Новая кнопка "Foto" рядом с кнопкой "Atpakaļ" */
+    #fotoButton {
+      position: fixed;
+      right: 200px; /* смещение влево от кнопки "Atpakaļ" */
+      bottom: 30px;
+      height: 150px;
+      padding: 0 20px;
+      font-size: 5em;
+      margin: 0;
+      z-index: 1100;
+      background: orange;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      display: none;
+    }
+
     /* Оверлей сканера */
     #scannerOverlay {
       display: none;
-       position: absolute;
+      position: absolute;
       top: 300px;
       width: 100%;
       height: 100%;
@@ -85,9 +102,6 @@
       justify-content: center;
       align-items: center;
       flex-direction: column;
-
-    
-      
     }
 
     video {
@@ -98,16 +112,15 @@
 
     /* Красная линия сканирования */
     #scannerLine {
-  position: absolute;
-  top: 50%;
-  left: 100px;
-  width: calc(100% - 200px); /* 100px с каждой стороны */
-  height: 10px;
-  background-color: red;
-  z-index: 1500;
-  display: none;
-}
-
+      position: absolute;
+      top: 50%;
+      left: 100px;
+      width: calc(100% - 200px); /* 100px с каждой стороны */
+      height: 10px;
+      background-color: red;
+      z-index: 1500;
+      display: none;
+    }
 
     /* Оверлей результата */
     #resultOverlay {
@@ -182,6 +195,8 @@
 
   <!-- Кнопка "Atpakaļ" -->
   <button id="backButton">Atpakaļ</button>
+  <!-- Новая кнопка "Foto" -->
+  <button id="fotoButton">Foto</button>
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
@@ -224,6 +239,7 @@
     const startButton = document.getElementById('startButton');
     const buttonContainer = document.getElementById('buttonContainer');
     const backButton = document.getElementById('backButton');
+    const fotoButton = document.getElementById('fotoButton');
     const overlay = document.getElementById('scannerOverlay');
     const scannerLine = document.getElementById('scannerLine');
     const resultOverlay = document.getElementById('resultOverlay');
@@ -261,6 +277,7 @@
       overlay.style.display = 'none';
       scannerLine.style.display = 'none';
       backButton.style.display = 'none';
+      fotoButton.style.display = 'none';
       buttonContainer.style.display = 'block';
       // Сброс переменных для повторного сканирования
       lastDetectedCode = null;
@@ -312,8 +329,7 @@
       hideResultOverlay();
     });
 
-    // Выносим обработчик обнаружения штрих-кода в отдельную функцию,
-    // чтобы потом можно было его отписать.
+    // Обработчик обнаружения штрих-кода (для видеопотока)
     function onDetectedCallback(result) {
       const code = result.codeResult.code;
       if (code === lastDetectedCode) {
@@ -322,10 +338,9 @@
         lastDetectedCode = code;
         matchCount = 1;
       }
-      // Если получено два последовательных одинаковых результата
+      // Если получено несколько последовательных одинаковых результатов
       if (matchCount >= 5) {
         playBeep();
-        // Отписываем обработчик, чтобы избежать накопления слушателей
         Quagga.offDetected(onDetectedCallback);
         setTimeout(() => {
           Quagga.stop();
@@ -335,12 +350,13 @@
       }
     }
 
-    // Основная функция сканирования с использованием QuaggaJS
+    // Основная функция сканирования с использованием QuaggaJS (видеопоток)
     function initAndScan() {
       overlay.style.display = 'flex';
       scannerLine.style.display = 'block';
       buttonContainer.style.display = 'none';
       backButton.style.display = 'block';
+      fotoButton.style.display = 'block';
 
       // Сброс переменных перед началом сканирования
       lastDetectedCode = null;
@@ -356,8 +372,6 @@
           }
         },
         decoder: {
-          // Добавлены дополнительные форматы штрих-кодов.
-          // QuaggaJS не поддерживает QR-коды из коробки.
           readers: [
             "code_128_reader",
             "ean_reader",
@@ -378,13 +392,72 @@
           return;
         }
         Quagga.start();
-        // Добавляем обработчик обнаружения
         Quagga.onDetected(onDetectedCallback);
       });
     }
 
-    // Назначение обработчиков событий
+    // Функция для захвата изображения с видеопотока
+    function captureImage() {
+      const videoElement = document.querySelector('#scannerOverlay video');
+      if (!videoElement) {
+        console.log("Видео поток недоступен");
+        return null;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/png');
+    }
+
+    // Функция для обработки изображения с помощью QuaggaJS
+    function scanImage(imageDataUrl) {
+      Quagga.decodeSingle({
+        src: imageDataUrl,
+        numOfWorkers: 0,
+        inputStream: {
+          size: 800
+        },
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "code_39_vin_reader",
+            "codabar_reader",
+            "upc_reader",
+            "upc_e_reader",
+            "i2of5_reader",
+            "2of5_reader",
+            "code_93_reader"
+          ]
+        }
+      }, function(result) {
+        if(result && result.codeResult) {
+          playBeep();
+          closeScanner();
+          showResultOverlay(result.codeResult.code);
+          console.log("Найденный код:", result.codeResult.code);
+        } else {
+          console.log("Код не распознан");
+          // Обработка ошибки при отсутствии распознания
+        }
+      });
+    }
+
+    // Назначение обработчика события для кнопки "Foto"
+    fotoButton.addEventListener('click', () => {
+      const imageDataUrl = captureImage();
+      if (imageDataUrl) {
+        scanImage(imageDataUrl);
+      }
+    });
+
+    // Назначение обработчика события для кнопки "Skenēt"
     startButton.addEventListener('click', initAndScan);
+    // Кнопка "Atpakaļ" для закрытия сканера
     backButton.addEventListener('click', closeScanner);
   </script>
 </body>
