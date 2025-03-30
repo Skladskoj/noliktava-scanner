@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Noliktava (ZXing‑JS)</title>
+  <title>Noliktava (ZXing Browser)</title>
   <style>
     /* Базовые стили */
     html, body {
@@ -20,7 +20,7 @@
       transform: translateX(-50%);
       color: #fff;
     }
-    /* Контейнер для кнопки "Skenēt" с текстом */
+    /* Контейнер для кнопки "Skenēt" */
     #buttonContainer {
       position: fixed;
       top: 50%;
@@ -30,7 +30,7 @@
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
-    /* Круглая кнопка без текста */
+    /* Круглая кнопка */
     #startButton {
       width: 100%;
       height: 100%;
@@ -39,7 +39,7 @@
       background: orange;
       cursor: pointer;
     }
-    /* Контейнер для текста, расположенный поверх кнопки */
+    /* Текст на кнопке */
     #buttonTextContainer {
       position: absolute;
       top: 50%;
@@ -51,7 +51,7 @@
       color: white;
       pointer-events: none;
     }
-    /* Кнопка "Atpakaļ" (правый нижний угол) */
+    /* Кнопка "Atpakaļ" */
     #backButton {
       position: fixed;
       right: 30px;
@@ -81,7 +81,7 @@
       justify-content: center;
       align-items: center;
     }
-    /* Видео для отображения камеры */
+    /* Видео */
     video {
       width: 100%;
       height: auto;
@@ -191,8 +191,8 @@
     </div>
   </div>
 
-  <!-- Подключаем ZXing‑JS библиотеку -->
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <!-- Подключаем пакет @zxing/browser -->
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <script>
     // Элементы интерфейса
     const startButton = document.getElementById('startButton');
@@ -205,13 +205,13 @@
     const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
     const confirmBtn = document.getElementById('confirmBtn');
+    const buttonContainer = document.getElementById('buttonContainer');
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Создаём универсальный сканер ZXing
-    let codeReader = new ZXing.BrowserMultiFormatReader();
+    // Создаём объект сканера из пакета @zxing/browser
+    const codeReader = new ZXing.BrowserMultiFormatReader();
 
-    // Функция звукового сигнала
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -228,15 +228,13 @@
     function initAndScan() {
       scannerOverlay.style.display = 'flex';
       backButton.style.display = 'block';
-      // Скрываем стартовую кнопку
       buttonContainer.style.display = 'none';
-      
-      // Запускаем декодирование с камеры (если deviceId = null, выбирается дефолтная камера)
+
       codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
         if (result) {
           playBeep();
           console.log("Считанный код:", result.text);
-          // Останавливаем декодирование, чтобы не считывать повторно
+          // Останавливаем сканирование, чтобы не получать повторные результаты
           codeReader.reset();
           scannerOverlay.style.display = 'none';
           resultOverlay.style.display = 'flex';
@@ -281,8 +279,6 @@
       resultOverlay.style.display = 'none';
     });
 
-    // Назначаем обработчик на кнопку запуска сканирования
-    const buttonContainer = document.getElementById('buttonContainer');
     startButton.addEventListener('click', initAndScan);
     backButton.addEventListener('click', closeScanner);
   </script>
