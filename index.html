@@ -318,7 +318,7 @@
         matchCount = 1;
       }
       // Если получено два последовательных одинаковых результата
-      if (matchCount >= 3) {
+      if (matchCount >= 4) {
         playBeep();
         // Отписываем обработчик, чтобы избежать накопления слушателей
         Quagga.offDetected(onDetectedCallback);
