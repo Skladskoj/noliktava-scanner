@@ -122,15 +122,16 @@
 
     /* Обновлённая клавиатура */
 #bottomSection {
-  
-  transform: translateY(-50px);
+  position: absolute;
+  bottom: 0;
   width: 100vw;
-  height: 550px;
+  height: 45vh; /* ← это 45% от высоты экрана */
   background: #000;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
+
 
 
 .keypad-grid {
