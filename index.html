@@ -243,42 +243,42 @@
       }, 200);
     }
 
-    // Функция улучшения фокуса при касании
-    function improveFocus() {
-      // Пытаемся получить видеопоток с элемента video
+    // Функция переключения фокусировки (смена focusMode) по нажатию
+    function toggleFocus() {
       const video = overlay.querySelector('video') || document.querySelector('video');
       if (!video || !video.srcObject) return;
       const track = video.srcObject.getVideoTracks()[0];
-      if (!track) return;
-      // Получаем возможности трека (если поддерживается)
-      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-      // Если поддерживается настройка фокуса дистанции
-      if (capabilities.focusDistance) {
-        // Пример: установка фокуса на минимальное значение для улучшения резкости
-        track.applyConstraints({
-          advanced: [{ focusMode: 'manual', focusDistance: capabilities.focusDistance.min }]
-        }).then(() => {
-          console.log("Фокус улучшен (manual focusDistance).");
-        }).catch((err) => {
-          console.error("Ошибка установки фокусных ограничений:", err);
-        });
-      } else if (capabilities.focusMode) {
-        // Если можно переключить режим фокуса на непрерывный
-        track.applyConstraints({
-          advanced: [{ focusMode: 'continuous' }]
-        }).then(() => {
-          console.log("Фокус улучшен (continuous mode).");
-        }).catch((err) => {
-          console.error("Ошибка установки фокусных ограничений:", err);
-        });
-      } else {
-        console.log("Настройка фокуса не поддерживается данным устройством.");
+      if (!track || typeof track.getCapabilities !== 'function') {
+        console.log("Устройство не поддерживает управление фокусом.");
+        return;
       }
+      const capabilities = track.getCapabilities();
+      // Если устройство не поддерживает настройку focusMode, выходим
+      if (!capabilities.focusMode) {
+        console.log("Настройка focusMode не поддерживается данным устройством.");
+        return;
+      }
+      const settings = track.getSettings();
+      console.log("Текущий режим фокуса:", settings.focusMode);
+      let newMode = settings.focusMode;
+      // Простейший переключатель: если текущий режим 'continuous' – переключаем на 'manual' (если доступно), и наоборот.
+      if (settings.focusMode === 'continuous' && capabilities.focusMode.includes('manual')) {
+        newMode = 'manual';
+      } else if (settings.focusMode === 'manual' && capabilities.focusMode.includes('continuous')) {
+        newMode = 'continuous';
+      }
+      track.applyConstraints({ advanced: [{ focusMode: newMode }]})
+        .then(() => {
+          console.log("Фокус переключён на:", newMode);
+        })
+        .catch((err) => {
+          console.error("Ошибка при переключении фокуса:", err);
+        });
     }
 
-    // Добавляем обработчики событий на касание/клик по оверлею
-    overlay.addEventListener("touchstart", improveFocus);
-    overlay.addEventListener("click", improveFocus);
+    // Добавляем обработчики событий по касанию и клику для переключения фокуса
+    overlay.addEventListener("touchstart", toggleFocus);
+    overlay.addEventListener("click", toggleFocus);
 
     // Обработчик обнаружения штрих-кода (QuaggaJS)
     function onDetectedCallback(result) {
@@ -435,7 +435,7 @@
         Quagga.start();
         Quagga.onDetected(onDetectedCallback);
         // Переключаем режимы каждую секунду до получения результата
-        modeSwitchInterval = setInterval(switchMode, 1000);
+        modeSwitchInterval = setInterval(switchMode, 500);
       });
     }
 
