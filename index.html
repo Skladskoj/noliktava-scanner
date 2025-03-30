@@ -72,7 +72,7 @@
     #scannerOverlay {
       display: none;
       position: absolute;
-      top: 300px;
+      top: 0px;
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.9);
@@ -209,7 +209,7 @@
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Создаём объект сканера из пакета @zxing/browser
+    // Создаём объект сканера
     const codeReader = new ZXing.BrowserMultiFormatReader();
 
     function playBeep() {
@@ -279,7 +279,13 @@
       resultOverlay.style.display = 'none';
     });
 
+    // Добавляем обработчик для мобильных: срабатывание сразу при касании
+    startButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      initAndScan();
+    });
     startButton.addEventListener('click', initAndScan);
+
     backButton.addEventListener('click', closeScanner);
   </script>
 </body>
