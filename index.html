@@ -124,6 +124,7 @@
 
     /* Обновлённая клавиатура */
 #bottomSection {
+  display: none;
   position: fixed;
   bottom: 0;
   width: 100vw;
@@ -202,6 +203,7 @@
       <div id="infoText">ievadiet preces skaitu</div>
       <div id="typedQuantity"></div>
     </div>
+    </div>
     <div id="bottomSection">
       <div class="keypad-grid" id="keypadGrid">
         <button class="keypad-btn">1</button>
@@ -215,7 +217,7 @@
         <button class="keypad-btn">9</button>
         <div></div>
         <button class="keypad-btn">0</button>
-        <div></div>
+        <div>
       </div>
       <div id="keypadActions">
         <button id="backBtn">Atpakaļ</button>
@@ -281,14 +283,17 @@
       scannedValueDiv.textContent = scannedCode;
       typedQuantityDiv.textContent = typedQuantity;
       resultOverlay.style.display = 'flex';
+      document.getElementById('bottomSection').style.display = 'flex';
       if (modeSwitchInterval) {
         clearInterval(modeSwitchInterval);
         modeSwitchInterval = null;
+      
       }
     }
 
     function hideResultOverlay() {
       resultOverlay.style.display = 'none';
+      document.getElementById('bottomSection').style.display = 'none';
       scannedCode = "";
       typedQuantity = "";
       scannedValueDiv.textContent = "";
