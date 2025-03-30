@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Noliktava (ZXing‑JS)</title>
   <style>
-    /* Общие стили */
+    /* Базовые стили */
     html, body {
       margin: 0;
       padding: 0;
@@ -20,7 +20,7 @@
       transform: translateX(-50%);
       color: #fff;
     }
-    /* Контейнер кнопки "Skenēt" */
+    /* Контейнер для кнопки "Skenēt" с текстом */
     #buttonContainer {
       position: fixed;
       top: 50%;
@@ -30,15 +30,16 @@
       transform: translate(-50%, -50%);
       z-index: 1100;
     }
-    /* Кнопка */
+    /* Круглая кнопка без текста */
     #startButton {
       width: 100%;
       height: 100%;
       border: none;
       border-radius: 50%;
       background: orange;
+      cursor: pointer;
     }
-    /* Текст поверх кнопки */
+    /* Контейнер для текста, расположенный поверх кнопки */
     #buttonTextContainer {
       position: absolute;
       top: 50%;
@@ -50,7 +51,7 @@
       color: white;
       pointer-events: none;
     }
-    /* Кнопка "Atpakaļ" */
+    /* Кнопка "Atpakaļ" (правый нижний угол) */
     #backButton {
       position: fixed;
       right: 30px;
@@ -64,27 +65,27 @@
       color: white;
       border: none;
       border-radius: 20px;
+      cursor: pointer;
       display: none;
     }
-    /* Оверлей сканера с видеопотоком */
+    /* Оверлей сканера */
     #scannerOverlay {
       display: none;
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #000;
+      top: 300px;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
       display: flex;
       justify-content: center;
       align-items: center;
     }
-    /* Видео занимает всё пространство */
-    #video {
+    /* Видео для отображения камеры */
+    video {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      height: auto;
+      max-height: 100vh;
     }
     /* Оверлей результата */
     #resultOverlay {
@@ -159,9 +160,9 @@
   <!-- Кнопка "Atpakaļ" -->
   <button id="backButton">Atpakaļ</button>
 
-  <!-- Оверлей сканера с видео -->
+  <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay></video>
   </div>
 
   <!-- Оверлей результата -->
@@ -190,18 +191,16 @@
     </div>
   </div>
 
-  <!-- Подключаем ZXing‑JS для браузера -->
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <!-- Подключаем ZXing‑JS библиотеку -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script>
     // Элементы интерфейса
     const startButton = document.getElementById('startButton');
-    const buttonContainer = document.getElementById('buttonContainer');
     const backButton = document.getElementById('backButton');
-    const overlay = document.getElementById('scannerOverlay');
+    const scannerOverlay = document.getElementById('scannerOverlay');
     const video = document.getElementById('video');
     const resultOverlay = document.getElementById('resultOverlay');
     const scannedValueDiv = document.getElementById('scannedValue');
-    const typedQuantityDiv = document.getElementById('typedQuantity');
     const keypadGrid = document.getElementById('keypadGrid');
     const backBtn = document.getElementById('backBtn');
     const delBtn = document.getElementById('delBtn');
@@ -209,78 +208,83 @@
 
     let scannedCode = "";
     let typedQuantity = "";
-    // Создаём экземпляр считывателя
-    const codeReader = new ZXing.BrowserMultiFormatReader();
+    // Создаём универсальный сканер ZXing
+    let codeReader = new ZXing.BrowserMultiFormatReader();
 
     // Функция звукового сигнала
     function playBeep() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
       oscillator.type = 'sine';
       oscillator.frequency.value = 1000;
-      oscillator.connect(audioCtx.destination);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
       oscillator.start();
       setTimeout(() => oscillator.stop(), 200);
     }
 
-    // Функция закрытия сканера
+    // Инициализация и запуск сканирования
+    function initAndScan() {
+      scannerOverlay.style.display = 'flex';
+      backButton.style.display = 'block';
+      // Скрываем стартовую кнопку
+      buttonContainer.style.display = 'none';
+      
+      // Запускаем декодирование с камеры (если deviceId = null, выбирается дефолтная камера)
+      codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+        if (result) {
+          playBeep();
+          console.log("Считанный код:", result.text);
+          // Останавливаем декодирование, чтобы не считывать повторно
+          codeReader.reset();
+          scannerOverlay.style.display = 'none';
+          resultOverlay.style.display = 'flex';
+          scannedCode = result.text;
+          scannedValueDiv.textContent = scannedCode;
+        }
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error(err);
+        }
+      });
+    }
+
     function closeScanner() {
-      codeReader.reset(); // Останавливает видеопоток
-      overlay.style.display = 'none';
+      codeReader.reset();
+      scannerOverlay.style.display = 'none';
       backButton.style.display = 'none';
       buttonContainer.style.display = 'block';
     }
 
-    // Отображение результата
-    function showResultOverlay(code) {
-      scannedCode = code;
-      scannedValueDiv.textContent = scannedCode;
-      resultOverlay.style.display = 'flex';
-    }
-
-    // Инициализация и запуск сканирования
-    function initAndScan() {
-      overlay.style.display = 'flex';
-      backButton.style.display = 'block';
-      buttonContainer.style.display = 'none';
-      resultOverlay.style.display = 'none';
-
-      // decodeFromVideoDevice: если deviceId не указан, будет выбран первый доступный
-      codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-        if (result) {
-          playBeep();
-          closeScanner();
-          showResultOverlay(result.text);
-        }
-        // Если ошибка, можно её обработать (например, если ничего не найдено — но здесь мы просто продолжаем сканировать)
-      });
-    }
-
-    // Обработчики событий
-    startButton.addEventListener('click', initAndScan);
-    backButton.addEventListener('click', closeScanner);
-
-    // Обработка нажатий на клавиатуру (как в предыдущих примерах)
+    // Обработка нажатий клавиатуры (пример)
     keypadGrid.addEventListener('click', (e) => {
       if (!e.target.classList.contains('keypad-btn')) return;
       const value = e.target.textContent;
       if (!isNaN(value)) {
         typedQuantity += value;
-        typedQuantityDiv.textContent = typedQuantity;
+        document.getElementById('typedQuantity').textContent = typedQuantity;
       }
     });
+
     backBtn.addEventListener('click', () => {
       resultOverlay.style.display = 'none';
     });
+
     delBtn.addEventListener('click', () => {
       typedQuantity = typedQuantity.slice(0, -1);
-      typedQuantityDiv.textContent = typedQuantity;
+      document.getElementById('typedQuantity').textContent = typedQuantity;
     });
+
     confirmBtn.addEventListener('click', () => {
       console.log("Отсканированный код:", scannedCode);
       console.log("Количество:", typedQuantity);
       resultOverlay.style.display = 'none';
     });
+
+    // Назначаем обработчик на кнопку запуска сканирования
+    const buttonContainer = document.getElementById('buttonContainer');
+    startButton.addEventListener('click', initAndScan);
+    backButton.addEventListener('click', closeScanner);
   </script>
 </body>
 </html>
