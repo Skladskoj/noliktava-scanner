@@ -27,7 +27,7 @@
       position: fixed;
       top: 50%;
       left: 50%;
-      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
+      width: calc(100vw - 150px);
       height: calc(100vw - 150px);
       transform: translate(-50%, -50%);
       z-index: 1100;
@@ -47,16 +47,15 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: auto;           /* ширина определяется содержимым */
       transform: translate(-50%, -50%);
-      white-space: nowrap;   /* не переносить текст */
+      white-space: nowrap;
       font-size: calc((100vw - 100px) * 0.19);
       font-weight: bold;
       color: white;
-      pointer-events: none;  /* клики проходят сквозь контейнер */
+      pointer-events: none;
     }
 
-    /* Кнопка "Atpakaļ" (прямоугольная, в правом нижнем углу) */
+    /* Кнопка "Atpakaļ" (правый нижний угол) */
     #backButton {
       position: fixed;
       right: 30px;
@@ -70,10 +69,10 @@
       color: white;
       border: none;
       border-radius: 20px;
-      display: none; /* изначально скрыта */
+      display: none;
     }
 
-    /* Оверлей сканера: на весь экран */
+    /* Оверлей сканера */
     #scannerOverlay {
       display: none;
       position: fixed;
@@ -82,16 +81,17 @@
       height: 100vh;
       background: rgba(0, 0, 0, 0.9);
       z-index: 1000;
-      
       justify-content: center;
       align-items: center;
       flex-direction: column;
     }
+
     video {
       width: 100%;
       height: auto;
       max-height: 100vh;
     }
+
     /* Красная линия сканирования */
     #scannerLine {
       position: absolute;
@@ -104,7 +104,7 @@
       display: none;
     }
 
-    /* Оверлей результата (сканированный код + ввод количества) */
+    /* Оверлей результата */
     #resultOverlay {
       display: none;
       position: fixed;
@@ -117,7 +117,8 @@
       flex-direction: column;
       justify-content: space-between;
     }
-    /* Верхняя часть оверлея результата */
+
+    /* Верхняя часть результата */
     #topSection {
       padding: 20px;
       text-align: center;
@@ -135,6 +136,7 @@
       font-size: 2.5em;
       margin-bottom: 10px;
     }
+
     /* Нижняя часть – клавиатура */
     #bottomSection {
       background: #111;
@@ -167,24 +169,24 @@
 <body>
   <h1>Noliktava</h1>
 
-  <!-- Контейнер для круглой кнопки "Skenēt" -->
+  <!-- Контейнер для кнопки "Skenēt" -->
   <div id="buttonContainer">
     <button id="startButton"></button>
     <div id="buttonTextContainer">Skenēt</div>
   </div>
 
-  <!-- Кнопка "Atpakaļ" (отдельный элемент, появляется при сканировании) -->
+  <!-- Кнопка "Atpakaļ" -->
   <button id="backButton">Atpakaļ</button>
 
   <!-- Оверлей сканера -->
   <div id="scannerOverlay">
-    <!-- QuaggaJS сам создаст видеопоток в этом элементе -->
+    <!-- QuaggaJS создаст видеопоток здесь -->
   </div>
 
   <!-- Линия сканирования -->
   <div id="scannerLine"></div>
 
-  <!-- Оверлей результата (сканированный код + ввод количества) -->
+  <!-- Оверлей результата -->
   <div id="resultOverlay">
     <div id="topSection">
       <div id="scannedValue"></div>
@@ -248,7 +250,7 @@
       }, 200);
     }
 
-    // Закрытие сканера: останавливаем Quagga, скрываем оверлей и переключаем кнопки
+    // Закрытие сканера
     function closeScanner() {
       Quagga.stop();
       overlay.style.display = 'none';
@@ -260,7 +262,7 @@
       matchCount = 0;
     }
 
-    // Показ оверлея результата после сканирования
+    // Показ оверлея результата
     function showResultOverlay(code) {
       scannedCode = code;
       typedQuantity = "";
@@ -277,7 +279,7 @@
       typedQuantityDiv.textContent = "";
     }
 
-    // Обработка нажатий на клавиши цифровой клавиатуры
+    // Обработка нажатий клавиатуры
     keypadGrid.addEventListener('click', (e) => {
       if (!e.target.classList.contains('keypad-btn')) return;
       const value = e.target.textContent;
@@ -287,7 +289,7 @@
       }
     });
 
-    // Кнопка "Atpakaļ" внутри клавиатуры
+    // Кнопка "Atpakaļ" на клавиатуре
     backBtn.addEventListener('click', () => {
       hideResultOverlay();
     });
@@ -320,14 +322,27 @@
         inputStream: {
           name: "Live",
           type: "LiveStream",
-          target: overlay, // Видеопоток будет отображаться здесь
+          target: overlay,
           constraints: {
             facingMode: "environment"
           }
         },
         decoder: {
-          // Указываем нужные форматы штрих-кодов
-          readers: ["code_128_reader", "ean_reader", "ean_8_reader"]
+          // Добавлены дополнительные форматы штрих-кодов.
+          // Обратите внимание: QuaggaJS не поддерживает QR-коды.
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "code_39_vin_reader",
+            "codabar_reader",
+            "upc_reader",
+            "upc_e_reader",
+            "i2of5_reader",
+            "2of5_reader",
+            "code_93_reader"
+          ]
         }
       }, function(err) {
         if (err) {
@@ -346,8 +361,7 @@
           lastDetectedCode = code;
           matchCount = 1;
         }
-        // Если два последовательных раза получен один и тот же результат, считаем сканирование успешным
-        if (matchCount >= 2) {
+        if (matchCount >= 3) {
           playBeep();
           setTimeout(() => {
             Quagga.stop();
