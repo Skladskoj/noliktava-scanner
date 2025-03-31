@@ -1,378 +1,68 @@
 <!DOCTYPE html>
-<html>
+<html lang="lv">
 <head>
   <meta charset="UTF-8">
-  <title>Noliktava</title>
+  <title>QR skenēšanas tests</title>
   <style>
-    /* Базовые стили */
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      font-family: sans-serif;
       background: #000;
-      color: #fff;
-    }
-
-    h1 {
-	position: absolute;
-		top: 10px;
-	  font-size: 5em;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-	
-    }
-
-    /* Контейнер для кнопки "Skenēt" с текстом */
-    #buttonContainer {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: calc(100vw - 150px);  /* отступ 50px с каждой стороны */
-      height: calc(100vw - 150px);
-      transform: translate(-50%, -50%);
-      z-index: 1100;
-    }
-
-    /* Круглая кнопка без текста */
-    #startButton {
-      width: 100%;
-      height: 100%;
-      border: none;
-      border-radius: 50%;
-      background: orange;
-    }
-
-    /* Контейнер для текста, расположенный поверх кнопки */
-    #buttonTextContainer {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: auto;           /* ширина определяется содержимым */
-  transform: translate(-50%, -50%);
-  white-space: nowrap;   /* не переносить текст */
-  font-size: calc((100vw - 100px) * 0.19);
-  font-weight: bold;
-  color: white;
-  pointer-events: none;  /* клики проходят сквозь контейнер */
-}
-
-
-    /* Кнопка "Atpakaļ" (прямоугольная, в правом нижнем углу) */
-    #backButton {
-      position: fixed;
-      right: 30px;
-      bottom: 30px;
-      height: 200px;
-      padding: 0 20px;
-      font-size: 5em;
-      margin: 0;
-      z-index: 1100;
-      background: orange;
-      color: white;
-      border: none;
-      border-radius: 20px;
-      display: none; /* изначально скрыта */
-    }
-
-    /* Оверлей сканера: на весь экран */
-    #scannerOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 1000;
-      
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
+      color: #0f0;
+      font-family: sans-serif;
+      text-align: center;
     }
     video {
       width: 100%;
-      height: auto;
-      max-height: 100vh;
+      max-height: 80vh;
     }
-    /* Красная линия сканирования */
-    #scannerLine {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 100%;
-      height: 10px;
-      background-color: red;
-      z-index: 1500;
-      display: none;
-    }
-
-    /* Оверлей результата (сканированный код + ввод количества) */
-    #resultOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #000;
-      z-index: 2000;
-      color: #fff;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    /* Верхняя часть оверлея результата */
-    #topSection {
-      padding: 20px;
-      text-align: center;
-    }
-    #scannedValue {
-      font-size: 3em;
-      margin-bottom: 10px;
-    }
-    #infoText {
-      font-size: 1.2em;
-      opacity: 0.8;
-      margin-bottom: 10px;
-    }
-    #typedQuantity {
-      font-size: 2.5em;
-      margin-bottom: 10px;
-    }
-    /* Нижняя часть – клавиатура */
-    #bottomSection {
-      background: #111;
-      padding: 20px;
-    }
-    .keypad-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-gap: 10px;
-      margin: 0 auto;
-      max-width: 400px;
-    }
-    .keypad-btn {
-      background: #333;
-      color: #fff;
+    #result {
       font-size: 2em;
-      padding: 20px;
-      border: none;
-      border-radius: 10px;
-      text-align: center;
-      cursor: pointer;
-    }
-    #confirmBtn {
-      margin-top: 10px;
-      width: 100%;
-      background: #444;
+      margin-top: 20px;
+      color: orange;
     }
   </style>
 </head>
 <body>
-  <h1>Noliktava</h1>
+  <h1>QR TEST</h1>
+  <video id="video" autoplay playsinline></video>
+  <div id="result">Skatās QR...</div>
 
-  <!-- Контейнер для круглой кнопки "Skenēt" -->
-  <div id="buttonContainer">
-    <button id="startButton"></button>
-    <div id="buttonTextContainer">Skenēt</div>
-  </div>
-
-  <!-- Кнопка "Atpakaļ" (отдельный элемент, появляется при сканировании) -->
-  <button id="backButton">Atpakaļ</button>
-
-  <!-- Оверлей сканера -->
-  <div id="scannerOverlay">
-    <video id="preview"></video>
-  </div>
-
-  <!-- Линия сканирования -->
-  <div id="scannerLine"></div>
-
-  <!-- Оверлей результата (сканированный код + ввод количества) -->
-  <div id="resultOverlay">
-    <div id="topSection">
-      <div id="scannedValue"></div>
-      <div id="infoText">ievadiet preces skaitu</div>
-      <div id="typedQuantity"></div>
-    </div>
-    <div id="bottomSection">
-      <div class="keypad-grid" id="keypadGrid">
-        <button class="keypad-btn">1</button>
-        <button class="keypad-btn">2</button>
-        <button class="keypad-btn">3</button>
-        <button class="keypad-btn">4</button>
-        <button class="keypad-btn">5</button>
-        <button class="keypad-btn">6</button>
-        <button class="keypad-btn">7</button>
-        <button class="keypad-btn">8</button>
-        <button class="keypad-btn">9</button>
-        <button class="keypad-btn" id="backBtn">Atpakaļ</button>
-        <button class="keypad-btn">0</button>
-        <button class="keypad-btn" id="delBtn">Nodzēst</button>
-      </div>
-      <button class="keypad-btn" id="confirmBtn">Apstiprināt</button>
-    </div>
-  </div>
-
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElement = document.getElementById('preview');
-    const startButton = document.getElementById('startButton');
-    const buttonContainer = document.getElementById('buttonContainer');
-    const backButton = document.getElementById('backButton'); // кнопка в углу
-    const overlay = document.getElementById('scannerOverlay');
-    const scannerLine = document.getElementById('scannerLine');
+    const video = document.getElementById('video');
+    const resultDiv = document.getElementById('result');
 
-    const resultOverlay = document.getElementById('resultOverlay');
-    const scannedValueDiv = document.getElementById('scannedValue');
-    const typedQuantityDiv = document.getElementById('typedQuantity');
-    const keypadGrid = document.getElementById('keypadGrid');
-    const backBtn = document.getElementById('backBtn'); // кнопка "Atpakaļ" в клавиатуре
-    const delBtn = document.getElementById('delBtn');
-    const confirmBtn = document.getElementById('confirmBtn');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+        requestAnimationFrame(scanLoop);
+      })
+      .catch(err => {
+        resultDiv.textContent = "Kļūda ar kameru: " + err.message;
+        resultDiv.style.color = 'red';
+      });
 
-    let scannedCode = "";
-    let typedQuantity = "";
-
-    // Функция звукового сигнала
-    function playBeep() {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 1000;
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.start();
-      setTimeout(() => {
-        oscillator.stop();
-      }, 200);
-    }
-
-    // Закрытие сканера: скрываем оверлей сканера и переключаем кнопки
-    function closeScanner() {
-      codeReader.reset();
-      overlay.style.display = 'none';
-      scannerLine.style.display = 'none';
-      // Скрываем кнопку "Atpakaļ" в углу
-      backButton.style.display = 'none';
-      // Показываем контейнер с круглой кнопкой "Skenēt"
-      buttonContainer.style.display = 'block';
-    }
-
-    // Показ оверлея результата после сканирования
-    function showResultOverlay(code) {
-      scannedCode = code;
-      typedQuantity = "";
-      scannedValueDiv.textContent = scannedCode;
-      typedQuantityDiv.textContent = typedQuantity;
-      resultOverlay.style.display = 'flex';
-    }
-
-    function hideResultOverlay() {
-      resultOverlay.style.display = 'none';
-      scannedCode = "";
-      typedQuantity = "";
-      scannedValueDiv.textContent = "";
-      typedQuantityDiv.textContent = "";
-    }
-
-    // Обработка нажатий на клавиши цифровой клавиатуры
-    keypadGrid.addEventListener('click', (e) => {
-      if (!e.target.classList.contains('keypad-btn')) return;
-      const value = e.target.textContent;
-      if (!isNaN(value)) {
-        typedQuantity += value;
-        typedQuantityDiv.textContent = typedQuantity;
-      }
-    });
-
-    // Кнопка "Atpakaļ" внутри клавиатуры
-    backBtn.addEventListener('click', () => {
-      hideResultOverlay();
-    });
-
-    // Кнопка "Nodzēst" — удалить последний символ
-    delBtn.addEventListener('click', () => {
-      typedQuantity = typedQuantity.slice(0, -1);
-      typedQuantityDiv.textContent = typedQuantity;
-    });
-
-    // Кнопка "Apstiprināt"
-    confirmBtn.addEventListener('click', () => {
-      console.log("Отсканированный код:", scannedCode);
-      console.log("Количество:", typedQuantity);
-      hideResultOverlay();
-    });
-
-    // Основная функция сканирования
-    async function initAndScan() {
-      overlay.style.display = 'flex';
-      scannerLine.style.display = 'block';
-      codeReader.reset();
-
-      // При запуске сканирования: скрываем контейнер с кнопкой "Skenēt"
-      buttonContainer.style.display = 'none';
-      // Показываем кнопку "Atpakaļ" в углу
-      backButton.style.display = 'block';
-
-      let lastResult = null;
-      let matchCount = 0;
-
-      try {
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 3840, max: 3840 },
-            height: { ideal: 2160, max: 2160 },
-            advanced: [{ focusMode: "continuous" }]
-          }
-        };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const videoTrack = stream.getVideoTracks()[0];
-        const capabilities = videoTrack.getCapabilities();
-        if (capabilities.focusMode) {
-          await videoTrack.applyConstraints({ focusMode: "continuous" });
-        }
-        stream.getTracks().forEach(track => track.stop());
-
-        const devices = await codeReader.listVideoInputDevices();
-        let backCameraId;
-        const macroDevice = devices.find(device =>
-          device.label.toLowerCase().includes("macro") || device.label.toLowerCase().includes("макро")
-        );
-        if (macroDevice) {
-          backCameraId = macroDevice.deviceId;
+    function scanLoop() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (code) {
+          resultDiv.textContent = "ATRADA: " + code.data;
+          resultDiv.style.color = 'lime';
+          return; // остановим сканирование
         } else {
-          backCameraId = devices.find(device =>
-            device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("задн")
-          )?.deviceId || devices[0].deviceId;
+          resultDiv.textContent = "Skatās QR...";
+          resultDiv.style.color = 'orange';
         }
-
-        codeReader.decodeFromVideoDevice(backCameraId, videoElement, (result, err) => {
-          if (result) {
-            const text = result.getText();
-            if (text === lastResult) {
-              matchCount++;
-            } else {
-              lastResult = text;
-              matchCount = 1;
-            }
-            if (matchCount >= 3) {
-              playBeep();
-              setTimeout(() => {
-                closeScanner();
-                showResultOverlay(text);
-              }, 300);
-            }
-          }
-        });
-      } catch (err) {
-        console.error(err);
       }
+      requestAnimationFrame(scanLoop);
     }
-
-    startButton.addEventListener('click', initAndScan);
-    backButton.addEventListener('click', closeScanner);
   </script>
 </body>
 </html>
